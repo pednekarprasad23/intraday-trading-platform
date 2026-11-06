@@ -1,0 +1,10 @@
+@import "tailwindcss";
+:root { font-family: system-ui, sans-serif; color: #17212f; background: #f4f6f8; }
+h1 { font-size: 2rem; font-weight: 700; } h2 { font-size: 1.3rem; font-weight: 650; margin-bottom: 1rem; }
+header, section, aside, nav { margin-bottom: 1.5rem; } section { background: white; border: 1px solid #d5dce4; border-radius: .5rem; padding: 1.5rem; }
+.notice { border-left: 4px solid #886000; padding: 1rem; background: #fff6d7; } .error { padding: 1rem; border: 1px solid #9b2020; }
+label { display: block; margin-bottom: 1rem; } input { display: block; border: 1px solid #6b7685; border-radius: .25rem; padding: .6rem; width: min(100%, 28rem); }
+button { background: #243a57; color: white; padding: .6rem 1rem; border-radius: .25rem; cursor: pointer; } button:disabled { opacity: .6; cursor: wait; }
+nav { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; } a { text-decoration: underline; } :focus-visible { outline: 3px solid #306bbc; outline-offset: 3px; }
+dl { display: grid; grid-template-columns: minmax(7rem, 1fr) 3fr; gap: .5rem; } dt { font-weight: 600; }
+.table-wrap { overflow-x: auto; } table { width: 100%; text-align: left; border-collapse: collapse; } th, td { padding: .7rem; border-bottom: 1px solid #d5dce4; } caption { text-align: left; padding: .7rem 0; }

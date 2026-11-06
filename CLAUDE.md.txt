@@ -1,0 +1,49 @@
+# Project Instructions
+
+## Project
+Build a single-user, cloud-hosted intraday
+trading intelligence platform.
+
+## Documentation
+Before coding, read:
+- README.md
+- docs/01-PRD.md
+- docs/02-SYSTEM-ARCHITECTURE.md
+- docs/03-DATABASE-DESIGN.md
+- docs/04-FIRST-DEVELOPMENT-SPRINT.md
+
+## Technology
+- Frontend: Next.js + TypeScript
+- Backend: Python + FastAPI
+- Database: PostgreSQL
+- Cache and queue: Redis
+- Deployment: Docker
+- AI inference for the application: Salad Cloud Qwen
+- Brokers: Angel One and MetaTrader 5
+
+## Development rules
+- Follow the approved architecture.
+- Work one task at a time.
+- Explain technical steps in beginner-friendly language.
+- Ask before making major architecture changes.
+- Write tests for new functionality.
+- Keep documentation updated.
+- Use Git commits at logical milestones.
+- Never hardcode API keys or passwords.
+- Never commit secrets or .env files.
+
+## Trading safety
+- No autonomous trading.
+- No live orders during initial development.
+- Use synthetic data until integrations are ready.
+- Paper trading before live execution.
+- All orders must pass server-side risk checks.
+- Manual approval is mandatory for live orders.
+- AI must never directly place or modify orders.
+
+## Working method
+Explain what you intend to change before
+implementing each major task.
+Run relevant tests after implementation.
+Report files changed, commands executed,
+test results, and any outstanding issues.
