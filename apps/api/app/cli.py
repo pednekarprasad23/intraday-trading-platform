@@ -2,18 +2,29 @@
 
 import argparse
 import getpass
+import os
+import tempfile
 from datetime import date, time
 from decimal import Decimal
 from pathlib import Path
 
 from app.config import get_settings
+from app.historical.credentials import (
+    CredentialError,
+    delete_dhan_token,
+    initialize_key,
+    load_dhan_token,
+    store_dhan_token,
+)
 from app.historical.importer import import_fixture, orphan_files
+from app.historical.dhan import ExactIdentity, fetch_exact, fetch_rolling
 from app.historical.reader import read_sessions
 from app.backtesting.engine import SimulationConfig, run
 from app.backtesting.walk_forward import walk_forward
+from app.backtesting.reports import persist_backtest, persist_walk_forward
 from app.models import HistoricalPartition
 from app.strategies.contracts import StrategyConfig
-from app.strategy_evaluation import evaluate_fixture
+from app.strategy_evaluation import evaluate_catalog, evaluate_fixture
 from uuid import UUID
 
 from sqlalchemy import select
@@ -33,8 +44,14 @@ def main():
             "import-candles",
             "historical-orphans",
             "evaluate-strategy",
+            "evaluate-catalog",
             "backtest",
             "walk-forward",
+            "dhan-exact-import",
+            "dhan-rolling-check",
+            "credential-init",
+            "credential-save-dhan",
+            "credential-delete-dhan",
         ],
     )
     parser.add_argument("--file", type=Path)
@@ -62,7 +79,178 @@ def main():
     parser.add_argument("--target-fraction", type=Decimal, default=Decimal("0.2"))
     parser.add_argument("--train-size", type=int, default=2)
     parser.add_argument("--test-size", type=int, default=1)
+    parser.add_argument("--security-id")
+    parser.add_argument("--exchange-segment")
+    parser.add_argument("--instrument-kind")
+    parser.add_argument("--expiry", type=date.fromisoformat)
+    parser.add_argument("--strike", type=Decimal)
+    parser.add_argument("--option-type", choices=["CE", "PE"])
+    parser.add_argument("--expiry-flag", choices=["WEEK", "MONTH"])
+    parser.add_argument("--expiry-code", type=int)
+    parser.add_argument("--relative-strike")
     args = parser.parse_args()
+    if args.command.startswith("credential-"):
+        key_path = Path(get_settings().credential_key_path)
+        try:
+            if args.command == "credential-init":
+                initialize_key(key_path)
+                print("Credential key initialized; retain an offline protected backup")
+            elif args.command == "credential-save-dhan":
+                token = getpass.getpass("Dhan access token (hidden): ")
+                with SessionLocal() as db:
+                    store_dhan_token(db, key_path, token)
+                del token
+                print(
+                    "Dhan read-only data token stored encrypted; previous token replaced"
+                )
+            else:
+                with SessionLocal() as db:
+                    delete_dhan_token(db)
+                print("Stored Dhan token deleted")
+        except CredentialError as exc:
+            parser.error(str(exc))
+        return
+    if args.command in {"dhan-exact-import", "dhan-rolling-check"}:
+        required = (
+            args.security_id,
+            args.exchange_segment,
+            args.instrument_kind,
+            args.timeframe,
+            args.session_date,
+            args.session_start,
+            args.session_end,
+        )
+        if any(value is None for value in required):
+            parser.error(
+                "Dhan history requires explicit security ID, exchange segment, instrument kind, timeframe and IST session window"
+            )
+        # An explicit ephemeral override is useful for isolated verification;
+        # ordinary operator runs decrypt the stored credential only here.
+        token = os.environ.get("DHAN_ACCESS_TOKEN")
+        if not token:
+            try:
+                with SessionLocal() as credential_db:
+                    token = load_dhan_token(
+                        credential_db, Path(get_settings().credential_key_path)
+                    )
+            except CredentialError as exc:
+                parser.error(str(exc))
+        if args.command == "dhan-rolling-check":
+            if (
+                args.expiry_flag is None
+                or args.expiry_code is None
+                or args.relative_strike is None
+                or args.option_type is None
+            ):
+                parser.error(
+                    "Rolling check requires expiry flag/code, relative strike and option type"
+                )
+            result = fetch_rolling(
+                security_id=args.security_id,
+                exchange_segment=args.exchange_segment,
+                instrument=args.instrument_kind,
+                expiry_flag=args.expiry_flag,
+                expiry_code=args.expiry_code,
+                strike=args.relative_strike,
+                option_type="CALL" if args.option_type == "CE" else "PUT",
+                timeframe=args.timeframe,
+                session_date=args.session_date,
+                session_start=args.session_start,
+                session_end=args.session_end,
+                token=token,
+            )
+            print(
+                f"ROLLING RESEARCH ONLY: bars={len(result.ce) + len(result.pe)} gaps={len(result.ce_gaps) + len(result.pe_gaps)} source_sha256={result.provenance.source_sha256}; never an exact-contract backtest"
+            )
+            return
+        if (
+            args.provider_key != args.security_id
+            or args.instrument_id is None
+            or args.expiry is None
+            or args.strike is None
+            or args.option_type is None
+        ):
+            parser.error(
+                "Exact import requires matching --provider-key/--security-id and externally verified --instrument-id --expiry --strike --option-type"
+            )
+        with SessionLocal() as db:
+            instrument = db.get(Instrument, args.instrument_id)
+            mapping = db.scalar(
+                select(ProviderSymbol).where(
+                    ProviderSymbol.instrument_id == args.instrument_id,
+                    ProviderSymbol.provider == "DHAN",
+                    ProviderSymbol.provider_instrument_key == args.security_id,
+                )
+            )
+            if (
+                instrument is None
+                or mapping is None
+                or instrument.is_demo
+                or instrument.metadata_source != "DHAN"
+                or mapping.last_verified_at is None
+                or mapping.provider_exchange != args.exchange_segment
+                or args.instrument_kind != "OPTIDX"
+                or instrument.asset_class != "OPTION"
+                or instrument.underlying_id is None
+                or instrument.expiry_date != args.expiry
+                or instrument.strike_price != args.strike
+                or instrument.option_type != args.option_type
+            ):
+                raise ValueError(
+                    "Verified exact Dhan instrument and mapping required before fetching"
+                )
+            result = fetch_exact(
+                identity=ExactIdentity(
+                    args.security_id,
+                    args.provider_key,
+                    args.expiry,
+                    args.strike,
+                    args.option_type,
+                    args.session_date,
+                    args.session_start,
+                    args.session_end,
+                    True,
+                ),
+                exchange_segment=args.exchange_segment,
+                instrument=args.instrument_kind,
+                timeframe=args.timeframe,
+                token=token,
+            )
+            if result.gaps or result.duplicate_count:
+                raise ValueError(
+                    "Dhan source gaps/duplicates require operator review; no import"
+                )
+            # The Phase 3 importer hashes normalized CSV bytes; the original
+            # sanitized provider-response hash is separately reported to the operator.
+            with tempfile.TemporaryDirectory(prefix="dhan-history-") as folder:
+                fixture = Path(folder) / "verified.csv"
+                fixture.write_bytes(result.fixture)
+                job = import_fixture(
+                    db,
+                    fixture,
+                    Path(get_settings().historical_data_root),
+                    provider="DHAN",
+                    provider_key=args.provider_key,
+                    timeframe=args.timeframe,
+                    session_date=args.session_date,
+                    session_start=args.session_start,
+                    session_end=args.session_end,
+                    source_sha256=result.fixture_sha256,
+                )
+                if (
+                    job.provider_response_sha256 is not None
+                    and job.provider_response_sha256 != result.provenance.source_sha256
+                ):
+                    raise ValueError(
+                        "Existing import has different provider response; operator review required"
+                    )
+                job.provider_response_sha256 = result.provenance.source_sha256
+                job.provider_retrieved_at = result.provenance.retrieved_at
+                db.commit()
+            print(
+                f"DHAN EXACT RESEARCH ONLY: job={job.id} rows={job.row_count} normalized_sha256={result.fixture_sha256} provider_response_sha256={result.provenance.source_sha256}"
+            )
+        return
     with SessionLocal() as db:
         if args.command in {"backtest", "walk-forward"}:
             if (
@@ -102,8 +290,10 @@ def main():
             )
             if args.command == "backtest":
                 result = run(sessions, strategy, simulation)
+                report = persist_backtest(db, sessions, strategy, simulation, result)
+                db.commit()
                 print(
-                    f"SIMULATED ONLY: fingerprint={result.fingerprint} metrics={result.metrics}"
+                    f"RESEARCH ONLY / SIMULATED / NO BROKER ORDER: report={report.id} fingerprint={result.fingerprint} metrics={result.metrics}"
                 )
                 for trade in result.trades:
                     print(trade)
@@ -115,12 +305,57 @@ def main():
                     train_size=args.train_size,
                     test_size=args.test_size,
                 )
+                report = persist_walk_forward(
+                    db,
+                    sessions,
+                    strategy,
+                    simulation,
+                    folds,
+                    args.train_size,
+                    args.test_size,
+                )
+                db.commit()
+                print(
+                    f"RESEARCH ONLY / SIMULATED / NO BROKER ORDER: report={report.id}"
+                )
                 for fold in folds:
                     print(
                         f"SIMULATED OOS: train={fold.training_dates} test={fold.test_dates} "
                         f"chosen={fold.chosen} metrics={fold.test.metrics} "
                         f"fingerprint={fold.test.fingerprint}"
                     )
+            return
+        if args.command == "evaluate-catalog":
+            if (
+                not args.instrument_id
+                or not args.provider
+                or not args.timeframe
+                or not args.session_date
+            ):
+                parser.error(
+                    "evaluate-catalog requires --instrument-id --provider --timeframe --session-date"
+                )
+            result = evaluate_catalog(
+                db,
+                root=Path(get_settings().historical_data_root),
+                instrument_id=args.instrument_id,
+                provider=args.provider,
+                timeframe=args.timeframe,
+                session_date=args.session_date,
+                config=StrategyConfig(
+                    "option-premium-ema-rsi",
+                    1,
+                    args.fast_period,
+                    args.slow_period,
+                    args.rsi_period,
+                    args.rsi_floor,
+                    args.rsi_ceiling,
+                ),
+            )
+            db.commit()
+            print(
+                f"RESEARCH ONLY / NO BROKER ORDER: decision={result.quality} {result.direction} reasons={result.reasons}"
+            )
             return
         if args.command == "evaluate-strategy":
             if args.file is None or args.job_id is None:

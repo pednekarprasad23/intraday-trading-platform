@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-07 — exact-contract Dhan sample verification
+
+- Verified a unique NIFTY 2026-11-09 26000 CE contract from Dhan's detailed master, imported one full 375-bar exact-option session and persisted a research evaluation and simulated backtest. Corrected integral-float epoch timestamp and exclusive start-boundary handling. One contract/day is insufficient for walk-forward or profitability claims; broker execution remains off.
+
+## 2026-11-07 — protected Dhan credential storage
+
+- Added operator-only hidden-prompt Dhan token save/rotation/deletion, encrypted PostgreSQL ciphertext (migration `0006`), separate local key volume, and on-demand decryption for read-only history commands. No earlier token was retained or migrated; no order capabilities were added.
+
+## 2026-11-07 — read-only Dhan research and reporting continuation
+
+- Added bounded, read-only Dhan historical chart parsing for exact active options with externally verified contract identity and a separate ATM-relative rolling-option check. Exact imports remain operator-controlled and fail closed on missing metadata, gaps or duplicate source bars; no real exact-contract request was run in this checkpoint.
+- Added immutable operator-created simulation and walk-forward report projections, migration `0005`, authenticated paginated research reads and a signed-in, explicitly simulated research view. Existing accepted LONG signal snapshots are visible; new operator evaluations persist LONG/NONE/rejected outcomes, while older NONE/rejected decisions are not retroactively available.
+- No paper order, Angel One execution, or live-trading path was added.
+
 ## 2026-11-07 — Phase 5 offline simulation checkpoint
 
 - Added bounded verified Parquet catalog reads for explicit exact-contract sessions, with checksum, schema, chronology and coverage rejection.

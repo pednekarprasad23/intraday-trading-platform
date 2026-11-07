@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.historical.routes import router as historical_router
+from app.backtesting.routes import router as research_router
 from app.database import engine, get_db
 from app.models import Instrument, ProviderSymbol
 from app.market_data.mt5 import router as mt5_router
@@ -25,6 +26,7 @@ app.include_router(auth_router)
 app.include_router(mt5_router)
 app.include_router(angelone_router)
 app.include_router(historical_router)
+app.include_router(research_router)
 
 
 @app.middleware("http")
@@ -84,7 +86,7 @@ def system_status():
     return {
         "version": settings.app_version,
         "environment": settings.app_env,
-        "trading_mode": "PAPER_ONLY",
+        "trading_mode": "RESEARCH_ONLY",
         "live_trading_enabled": False,
         "market_data": "not_connected",
         "market_provider": "none",

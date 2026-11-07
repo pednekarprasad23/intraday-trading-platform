@@ -36,6 +36,8 @@ def imports(
                 timeframe=row.timeframe,
                 session_date=row.session_date,
                 source_sha256=row.source_sha256,
+                provider_response_sha256=row.provider_response_sha256,
+                provider_retrieved_at=row.provider_retrieved_at,
                 status=row.status,
                 row_count=row.row_count,
                 duplicate_count=row.duplicate_count,

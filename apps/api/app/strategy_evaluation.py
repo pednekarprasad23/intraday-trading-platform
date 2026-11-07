@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import asdict
 from datetime import time, timezone
+from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -11,11 +12,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.historical.importer import MAX_BYTES, _parse
+from app.historical.reader import read_sessions
 from app.models import (
     HistoricalImportJob,
     HistoricalPartition,
     Instrument,
     ProviderSymbol,
+    ResearchEvaluation,
     StrategySignal,
     StrategyVersion,
 )
@@ -27,6 +30,82 @@ def canonical(value) -> bytes:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), default=str, allow_nan=False
     ).encode("utf-8")
+
+
+def record_decision(db: Session, decision, *, instrument_id, partition_id):
+    """Idempotently record an operator-evaluated result, including NONE/rejected."""
+    config_digest = hashlib.sha256(canonical(asdict(decision.config))).hexdigest()
+
+    # PyArrow's decimal128(18,4) materializes four fractional places on read;
+    # normalize prices before hashing so fixture and catalog replays deduplicate.
+    def bar_identity(bar):
+        values = asdict(bar)
+        for key in ("open", "high", "low", "close", "volume"):
+            if isinstance(values[key], Decimal):
+                values[key] = format(values[key].normalize(), "f")
+        return values
+
+    input_digest = hashlib.sha256(
+        canonical(
+            {
+                "source": asdict(decision.source),
+                "bars": [bar_identity(bar) for bar in decision.window],
+            }
+        )
+    ).hexdigest()
+    existing = db.scalar(
+        select(ResearchEvaluation).where(
+            ResearchEvaluation.partition_id == partition_id,
+            ResearchEvaluation.strategy_config_sha256 == config_digest,
+            ResearchEvaluation.input_sha256 == input_digest,
+        )
+    )
+    if existing is None:
+        db.add(
+            ResearchEvaluation(
+                instrument_id=instrument_id,
+                partition_id=partition_id,
+                strategy_id=decision.config.strategy_id,
+                strategy_version=decision.config.version,
+                strategy_config_sha256=config_digest,
+                input_sha256=input_digest,
+                decision_time=decision.decision_time,
+                direction=decision.direction,
+                quality=decision.quality,
+                reasons=list(decision.reasons),
+            )
+        )
+        db.flush()
+    return config_digest
+
+
+def evaluate_catalog(
+    db: Session,
+    *,
+    root: Path,
+    instrument_id,
+    provider: str,
+    timeframe: str,
+    session_date,
+    config: StrategyConfig,
+):
+    """Evaluate a verified exact-contract session without a retained source CSV."""
+    (session,) = read_sessions(
+        db,
+        root,
+        provider=provider,
+        instrument_id=instrument_id,
+        timeframe=timeframe,
+        dates=(session_date,),
+    )
+    decision = evaluate(config, session.source, session.bars)
+    record_decision(
+        db,
+        decision,
+        instrument_id=instrument_id,
+        partition_id=session.source.partition_id,
+    )
+    return decision
 
 
 def evaluate_fixture(
@@ -125,10 +204,13 @@ def evaluate_fixture(
         instrument.option_type,
     )
     decision = evaluate(config, source, bars)
-    if decision.quality != "VALID" or decision.direction == "NONE":
-        return decision
     config_data = asdict(config)
     config_digest = hashlib.sha256(canonical(config_data)).hexdigest()
+    record_decision(
+        db, decision, instrument_id=instrument.id, partition_id=partition.id
+    )
+    if decision.quality != "VALID" or decision.direction == "NONE":
+        return decision
     version = db.scalar(
         select(StrategyVersion).where(
             StrategyVersion.strategy_id == config.strategy_id,

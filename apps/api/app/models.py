@@ -111,6 +111,12 @@ class HistoricalImportJob(Base):
     timeframe: Mapped[str] = mapped_column(String(2))
     session_date: Mapped[date] = mapped_column(Date)
     source_sha256: Mapped[str] = mapped_column(String(64))
+    provider_response_sha256: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
+    provider_retrieved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     schema_version: Mapped[int] = mapped_column(default=1)
     requested_from: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     requested_to: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -212,6 +218,96 @@ class StrategySignal(Base):
     input_sha256: Mapped[str] = mapped_column(String(64))
     snapshot: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class ResearchEvaluation(Base):
+    """Operator-verified decision history; never a broker instruction."""
+
+    __tablename__ = "research_evaluations"
+    __table_args__ = (
+        UniqueConstraint(
+            "partition_id",
+            "strategy_config_sha256",
+            "input_sha256",
+            name="uq_research_evaluation_input",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    instrument_id: Mapped[UUID] = mapped_column(ForeignKey("instruments.id"))
+    partition_id: Mapped[UUID] = mapped_column(ForeignKey("historical_partitions.id"))
+    strategy_id: Mapped[str] = mapped_column(String(100))
+    strategy_version: Mapped[int] = mapped_column()
+    strategy_config_sha256: Mapped[str] = mapped_column(String(64))
+    input_sha256: Mapped[str] = mapped_column(String(64))
+    decision_time: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    direction: Mapped[str] = mapped_column(String(10))
+    quality: Mapped[str] = mapped_column(String(20))
+    reasons: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class BacktestReport(Base):
+    __tablename__ = "backtest_reports"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
+    input_fingerprint: Mapped[str] = mapped_column(String(64))
+    provider: Mapped[str] = mapped_column(String(50))
+    instrument_id: Mapped[UUID] = mapped_column(ForeignKey("instruments.id"))
+    timeframe: Mapped[str] = mapped_column(String(2))
+    strategy_id: Mapped[str] = mapped_column(String(100))
+    strategy_version: Mapped[int] = mapped_column()
+    simulation_config: Mapped[dict] = mapped_column(JSON)
+    strategy_config: Mapped[dict] = mapped_column(JSON)
+    sources: Mapped[list] = mapped_column(JSON)
+    metrics: Mapped[dict] = mapped_column(JSON)
+    warnings: Mapped[list] = mapped_column(JSON)
+    trade_summary: Mapped[list] = mapped_column(JSON)
+    event_summary: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class WalkForwardReport(Base):
+    __tablename__ = "walk_forward_reports"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
+    input_fingerprint: Mapped[str] = mapped_column(String(64))
+    provider: Mapped[str] = mapped_column(String(50))
+    instrument_id: Mapped[UUID] = mapped_column(ForeignKey("instruments.id"))
+    timeframe: Mapped[str] = mapped_column(String(2))
+    strategy_id: Mapped[str] = mapped_column(String(100))
+    strategy_version: Mapped[int] = mapped_column()
+    simulation_config: Mapped[dict] = mapped_column(JSON)
+    strategy_config: Mapped[dict] = mapped_column(JSON)
+    sources: Mapped[list] = mapped_column(JSON)
+    metrics: Mapped[dict] = mapped_column(JSON)
+    warnings: Mapped[list] = mapped_column(JSON)
+    train_size: Mapped[int] = mapped_column()
+    test_size: Mapped[int] = mapped_column()
+    folds: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class ProviderCredential(Base):
+    """Encrypted provider data credential; never projected through an HTTP route."""
+
+    __tablename__ = "provider_credentials"
+    __table_args__ = (
+        CheckConstraint("provider = 'DHAN'", name="ck_provider_credential_dhan_only"),
+    )
+    provider: Mapped[str] = mapped_column(String(50), primary_key=True)
+    ciphertext: Mapped[str] = mapped_column(Text)
+    key_version: Mapped[int] = mapped_column(default=1)
+    rotated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
 

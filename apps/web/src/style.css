@@ -8,3 +8,6 @@ button { background: #243a57; color: white; padding: .6rem 1rem; border-radius: 
 nav { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; } a { text-decoration: underline; } :focus-visible { outline: 3px solid #306bbc; outline-offset: 3px; }
 dl { display: grid; grid-template-columns: minmax(7rem, 1fr) 3fr; gap: .5rem; } dt { font-weight: 600; }
 .table-wrap { overflow-x: auto; } table { width: 100%; text-align: left; border-collapse: collapse; } th, td { padding: .7rem; border-bottom: 1px solid #d5dce4; } caption { text-align: left; padding: .7rem 0; }
+.research-warning { border-left: 4px solid #886000; background: #fff6d7; padding: 1rem; } .research-warning p { margin-bottom: 0; }
+.pager { display: flex; align-items: center; gap: 1rem; margin: 1rem 0 2rem; } .pager button:disabled { cursor: default; }
+#research h3 { font-size: 1.1rem; font-weight: 650; margin: 1.5rem 0 .5rem; }

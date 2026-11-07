@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     angelone_snapshot_path: str | None = None
     angelone_enabled: bool = False
     historical_data_root: str = "/var/lib/intraday/historical"
+    credential_key_path: str = "/var/lib/intraday/credentials/key"
 
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=False, extra="ignore"
