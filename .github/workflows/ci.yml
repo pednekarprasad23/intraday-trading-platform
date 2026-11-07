@@ -60,10 +60,10 @@ jobs:
       POSTGRES_PASSWORD: disposable-ci-database-only
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose -p phase1-ci -f deployment/compose/compose.yml up --build -d --wait
+      - run: docker compose -p phase1-ci -f deployment/compose/compose.yml -f deployment/compose/compose.build.yml up --build -d --wait
       - run: curl --fail http://localhost:8080/api/v1/health/ready
-      - run: docker compose -p phase1-ci -f deployment/compose/compose.yml exec -T api python -m app.cli seed-demo
+      - run: docker compose -p phase1-ci -f deployment/compose/compose.yml -f deployment/compose/compose.build.yml exec -T api python -m app.cli seed-demo
       - run: docker cp apps/api/tests/compose_smoke.py phase1-ci-api-1:/tmp/compose_smoke.py
-      - run: docker compose -p phase1-ci -f deployment/compose/compose.yml exec -T -e PYTHONPATH=/app api python /tmp/compose_smoke.py
+      - run: docker compose -p phase1-ci -f deployment/compose/compose.yml -f deployment/compose/compose.build.yml exec -T -e PYTHONPATH=/app api python /tmp/compose_smoke.py
       - if: always()
-        run: docker compose -p phase1-ci -f deployment/compose/compose.yml down -v
+        run: docker compose -p phase1-ci -f deployment/compose/compose.yml -f deployment/compose/compose.build.yml down -v

@@ -1,0 +1,6 @@
+# Explicit opt-in for source builds (CI/development); default Compose pulls versioned images.
+services:
+  api:
+    build: ../../apps/api
+  web:
+    build: ../../apps/web

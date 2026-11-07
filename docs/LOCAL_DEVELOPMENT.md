@@ -7,12 +7,12 @@ Docker with Linux containers and Compose is required. Node 22+ is optional for f
 ## Start (from repository root)
 
 1. Copy `.env.example` to `.env` and set `POSTGRES_PASSWORD` to a unique URL-safe value. Do not commit this file. Database URL interpolation requires URL-safe characters.
-2. Run `docker compose --env-file .env -p intraday -f deployment/compose/compose.yml up --build -d --wait`.
+2. Run `docker compose --env-file .env -p intraday -f deployment/compose/compose.yml pull` then `docker compose --env-file .env -p intraday -f deployment/compose/compose.yml up -d --wait`. The default Compose file uses the published, versioned API and web images; PostgreSQL and Redis pull their official images. For explicit local source builds instead, add `-f deployment/compose/compose.build.yml` to the Compose command and use `up --build -d --wait`.
 3. Run `docker compose --env-file .env -p intraday -f deployment/compose/compose.yml exec api python -m app.cli bootstrap` in your interactive terminal. Enter your email and a password of at least 14 characters. There is no default account or public registration.
 4. Run `docker compose --env-file .env -p intraday -f deployment/compose/compose.yml exec api python -m app.cli seed-demo`.
 5. Open `http://localhost:8080`. Sign in to view status and search the seven explicitly demo instruments.
 
-Database and Redis have no published ports. API binds only to `127.0.0.1:8000`, web only to `127.0.0.1:8080`. Persistent named volumes survive ordinary `down` and restart. Never use `down -v` on data you wish to keep.
+Database and Redis have no published ports. API binds only to `127.0.0.1:8000`, web only to `127.0.0.1:8080`. Persistent named volumes survive ordinary `down` and restart. Never use `down -v` on data you wish to keep. Preserve the same `.env` (especially `POSTGRES_PASSWORD`) across restarts: the database volume was initialized with that password. Preserve `intraday_postgres_data`, `intraday_redis_data`, `intraday_historical_data`, and `intraday_credential_key`. Removing images does not back up these volumes. The API and web images are currently public on Docker Hub and contain application code, not your local token or database records.
 
 ## Checks
 
