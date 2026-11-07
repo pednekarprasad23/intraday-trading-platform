@@ -307,6 +307,7 @@ class ProviderCredential(Base):
     provider: Mapped[str] = mapped_column(String(50), primary_key=True)
     ciphertext: Mapped[str] = mapped_column(Text)
     key_version: Mapped[int] = mapped_column(default=1)
+    client_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     rotated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )

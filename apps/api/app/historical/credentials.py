@@ -43,7 +43,7 @@ def _cipher(path: Path) -> Fernet:
         raise CredentialError("Credential key is unavailable or invalid") from exc
 
 
-def store_dhan_token(db: Session, path: Path, token: str) -> None:
+def store_dhan_token(db: Session, path: Path, token: str, client_id: str = "") -> None:
     if (
         not token
         or token != token.strip()
@@ -57,11 +57,12 @@ def store_dhan_token(db: Session, path: Path, token: str) -> None:
     if row is None:
         db.add(
             ProviderCredential(
-                provider="DHAN", ciphertext=ciphertext, rotated_at=utcnow()
+                provider="DHAN", ciphertext=ciphertext, client_id=client_id, rotated_at=utcnow()
             )
         )
     else:
         row.ciphertext = ciphertext
+        row.client_id = client_id
         row.rotated_at = utcnow()
     db.add(AuditLog(event_type="dhan_credential_rotated"))
     db.commit()
@@ -75,6 +76,23 @@ def load_dhan_token(db: Session, path: Path) -> str:
         raise CredentialError("Unsupported credential key version")
     try:
         return _cipher(path).decrypt(row.ciphertext.encode("ascii")).decode("utf-8")
+    except (InvalidToken, UnicodeError, ValueError) as exc:
+        raise CredentialError(
+            "Dhan credential cannot be decrypted; check key and rotation"
+        ) from exc
+
+
+def load_dhan_credentials(db: Session, path: Path) -> tuple[str, str]:
+    """Return (access_token, client_id) from encrypted storage."""
+    row = db.get(ProviderCredential, "DHAN")
+    if row is None:
+        raise CredentialError("No stored Dhan credentials; save one using the operator CLI")
+    if row.key_version != 1:
+        raise CredentialError("Unsupported credential key version")
+    try:
+        token = _cipher(path).decrypt(row.ciphertext.encode("ascii")).decode("utf-8")
+        client_id = row.client_id or ""
+        return token, client_id
     except (InvalidToken, UnicodeError, ValueError) as exc:
         raise CredentialError(
             "Dhan credential cannot be decrypted; check key and rotation"

@@ -13,7 +13,12 @@ from app.database import engine, get_db
 from app.models import Instrument, ProviderSymbol
 from app.market_data.mt5 import router as mt5_router
 from app.market_data.angelone import router as angelone_router
+from app.market_data.coverage import router as coverage_router
 from app.auth import router as auth_router, require_user
+from app.research.routes import router as research_ranking_router
+from app.providers.dhan import router as dhan_router
+from app.paper_trading.routes import router as paper_router
+from app.paper_trading.demo import router as demo_router
 from sqlalchemy import func
 
 settings = get_settings()
@@ -25,8 +30,13 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 app.include_router(auth_router)
 app.include_router(mt5_router)
 app.include_router(angelone_router)
+app.include_router(coverage_router)
 app.include_router(historical_router)
 app.include_router(research_router)
+app.include_router(research_ranking_router)
+app.include_router(dhan_router)  # Phase 3: Dhan provider metadata
+app.include_router(paper_router)  # Phase 4: Paper trading
+app.include_router(demo_router)  # Phase 5: Demo order testing
 
 
 @app.middleware("http")

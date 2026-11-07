@@ -1,6 +1,8 @@
 # Explicit opt-in for source builds (CI/development); default Compose pulls versioned images.
 services:
   api:
+    image: intraday-api:local
     build: ../../apps/api
   web:
+    image: intraday-web:local
     build: ../../apps/web

@@ -25,6 +25,7 @@ from app.backtesting.reports import persist_backtest, persist_walk_forward
 from app.models import HistoricalPartition
 from app.strategies.contracts import StrategyConfig
 from app.strategy_evaluation import evaluate_catalog, evaluate_fixture
+from app.instruments import mappings as phase3
 from uuid import UUID
 
 from sqlalchemy import select
@@ -88,6 +89,7 @@ def main():
     parser.add_argument("--expiry-flag", choices=["WEEK", "MONTH"])
     parser.add_argument("--expiry-code", type=int)
     parser.add_argument("--relative-strike")
+    parser.add_argument("--client-id", type=str, help="Dhan client ID for store_dhan_token")
     args = parser.parse_args()
     if args.command.startswith("credential-"):
         key_path = Path(get_settings().credential_key_path)
@@ -97,11 +99,13 @@ def main():
                 print("Credential key initialized; retain an offline protected backup")
             elif args.command == "credential-save-dhan":
                 token = getpass.getpass("Dhan access token (hidden): ")
+                client_id = args.client_id or input("Dhan client ID (hidden): ").strip() if args.client_id is None else args.client_id
                 with SessionLocal() as db:
-                    store_dhan_token(db, key_path, token)
+                    store_dhan_token(db, key_path, token, client_id=client_id)
                 del token
+                del client_id
                 print(
-                    "Dhan read-only data token stored encrypted; previous token replaced"
+                    "Dhan read-only data token and client ID stored encrypted; previous token replaced"
                 )
             else:
                 with SessionLocal() as db:
@@ -433,49 +437,334 @@ def main():
             db.add(User(email=email, password_hash=password_hasher.hash(password)))
             db.add(AuditLog(event_type="bootstrap"))
         else:
-            for symbol, name, asset, exchange in [
-                ("DEMO:NIFTY", "NIFTY 50 (DEMO)", "INDEX", "NSE"),
-                ("DEMO:BANKNIFTY", "BANKNIFTY (DEMO)", "INDEX", "NSE"),
-                ("DEMO:SENSEX", "SENSEX (DEMO)", "INDEX", "BSE"),
-                ("DEMO:FINNIFTY", "FINNIFTY (DEMO)", "INDEX", "NSE"),
+            # ------------------------------------------------------------------
+            # Phase 3 seed: indexes, equities, futures, MT5 gold & BTC
+            # ------------------------------------------------------------------
+
+            # -- 3a. Cash indexes (NSE + BSE) ----------------------------------
+            _INDEX_SEED = [
+                (
+                    phase3.NIFTY50.canonical,
+                    phase3.NIFTY50.display_name,
+                    "INDEX",
+                    phase3.NIFTY50.exchange,
+                    phase3.NIFTY50.segment,
+                    None,  # underlying_id
+                    phase3.NIFTY50.lot_size,
+                    phase3.NIFTY50.tick_size,
+                    phase3.NIFTY50.currency,
+                ),
+                (
+                    phase3.NIFTYBANK.canonical,
+                    phase3.NIFTYBANK.display_name,
+                    "INDEX",
+                    phase3.NIFTYBANK.exchange,
+                    phase3.NIFTYBANK.segment,
+                    None,
+                    phase3.NIFTYBANK.lot_size,
+                    phase3.NIFTYBANK.tick_size,
+                    phase3.NIFTYBANK.currency,
+                ),
+                (
+                    phase3.SENSEX.canonical,
+                    phase3.SENSEX.display_name,
+                    "INDEX",
+                    phase3.SENSEX.exchange,
+                    phase3.SENSEX.segment,
+                    None,
+                    phase3.SENSEX.lot_size,
+                    phase3.SENSEX.tick_size,
+                    phase3.SENSEX.currency,
+                ),
+                (
+                    phase3.FINNIFTY.canonical,
+                    phase3.FINNIFTY.display_name,
+                    "INDEX",
+                    phase3.FINNIFTY.exchange,
+                    phase3.FINNIFTY.segment,
+                    None,
+                    phase3.FINNIFTY.lot_size,
+                    phase3.FINNIFTY.tick_size,
+                    phase3.FINNIFTY.currency,
+                ),
+            ]
+
+            # -- 3b. Index futures ---------------------------------------------
+            _IDX_FUT = [
+                (
+                    phase3.NIFTY_FUT.canonical,
+                    phase3.NIFTY_FUT.display_name,
+                    "FUTURES",
+                    phase3.NIFTY_FUT.exchange,
+                    phase3.NIFTY_FUT.segment,
+                    phase3.NIFTY50.canonical,
+                    phase3.NIFTY_FUT.lot_size,
+                    phase3.NIFTY_FUT.tick_size,
+                    phase3.NIFTY_FUT.currency,
+                ),
+                (
+                    phase3.BANKNIFTY_FUT.canonical,
+                    phase3.BANKNIFTY_FUT.display_name,
+                    "FUTURES",
+                    phase3.BANKNIFTY_FUT.exchange,
+                    phase3.BANKNIFTY_FUT.segment,
+                    phase3.NIFTYBANK.canonical,
+                    phase3.BANKNIFTY_FUT.lot_size,
+                    phase3.BANKNIFTY_FUT.tick_size,
+                    phase3.BANKNIFTY_FUT.currency,
+                ),
+                (
+                    phase3.SENSEX_FUT.canonical,
+                    phase3.SENSEX_FUT.display_name,
+                    "FUTURES",
+                    phase3.SENSEX_FUT.exchange,
+                    phase3.SENSEX_FUT.segment,
+                    phase3.SENSEX.canonical,
+                    phase3.SENSEX_FUT.lot_size,
+                    phase3.SENSEX_FUT.tick_size,
+                    phase3.SENSEX_FUT.currency,
+                ),
+                (
+                    phase3.FINNIFTY_FUT.canonical,
+                    phase3.FINNIFTY_FUT.display_name,
+                    "FUTURES",
+                    phase3.FINNIFTY_FUT.exchange,
+                    phase3.FINNIFTY_FUT.segment,
+                    phase3.FINNIFTY.canonical,
+                    phase3.FINNIFTY_FUT.lot_size,
+                    phase3.FINNIFTY_FUT.tick_size,
+                    phase3.FINNIFTY_FUT.currency,
+                ),
+            ]
+
+            # -- 3c. Equity cash + futures -------------------------------------
+            _EQUITY_SEED = [
+                (
+                    s.canonical,
+                    s.display_name,
+                    "EQUITY",
+                    s.exchange,
+                    "EQ",
+                    None,
+                    s.lot_size,
+                    s.tick_size,
+                    s.currency,
+                )
+                for s in phase3.EQUITY_STOCKS
+            ]
+            _EQUITY_FUT = [
+                (
+                    s.canonical,
+                    s.display_name,
+                    "FUTURES",
+                    s.exchange,
+                    "FUT",
+                    s.underlying_canonical,
+                    s.lot_size,
+                    s.tick_size,
+                    s.currency,
+                )
+                for s in phase3.EQUITY_FUTURES
+            ]
+
+            # -- 3d. MT5 Gold & BTC --------------------------------------------
+            _MT5_SEED = [
+                (
+                    phase3.MT5_GOLD.canonical,
+                    phase3.MT5_GOLD.display_name,
+                    "COMMODITY",
+                    phase3.MT5_GOLD.exchange,
+                    "COMMODITY",
+                    None,
+                    phase3.MT5_GOLD.lot_size,
+                    phase3.MT5_GOLD.tick_size,
+                    phase3.MT5_GOLD.currency,
+                ),
+                (
+                    phase3.MT5_BTC.canonical,
+                    phase3.MT5_BTC.display_name,
+                    "CRYPTO",
+                    phase3.MT5_BTC.exchange,
+                    "CRYPTO",
+                    None,
+                    phase3.MT5_BTC.lot_size,
+                    phase3.MT5_BTC.tick_size,
+                    phase3.MT5_BTC.currency,
+                ),
+            ]
+
+            # -- 3e. Legacy demo fallback (option placeholder) -----------------
+            _LEGACY = [
                 (
                     "DEMO:OPTION",
                     "Illustrative option — not a real contract",
                     "OPTION",
                     "DEMO",
+                    "DEMO",
+                    None,
+                    Decimal("1"),
+                    Decimal("1"),
+                    "INR",
                 ),
-                ("DEMO:GOLD", "Gold placeholder (DEMO)", "COMMODITY", "DEMO"),
-                ("DEMO:BTC", "BTC placeholder (DEMO)", "CRYPTO", "DEMO"),
-            ]:
+            ]
+
+            _ALL_SEED = (
+                _INDEX_SEED
+                + _IDX_FUT
+                + _EQUITY_SEED
+                + _EQUITY_FUT
+                + _MT5_SEED
+                + _LEGACY
+            )
+
+            # Build a canonical-symbol → instrument-id lookup
+            _canonical_to_id: dict[str, UUID] = {}
+
+            for row in _ALL_SEED:
+                (
+                    canonical,
+                    display_name,
+                    asset_class,
+                    exchange,
+                    segment,
+                    underlying_canonical,
+                    lot_size,
+                    tick_size,
+                    currency,
+                ) = row
+
                 existing = db.scalar(
-                    select(Instrument).where(Instrument.canonical_symbol == symbol)
+                    select(Instrument).where(
+                        Instrument.canonical_symbol == canonical
+                    )
                 )
                 if existing:
-                    if symbol == "DEMO:OPTION" and existing.is_demo:
+                    # Legacy option placeholder: ensure demo fields are set
+                    if (
+                        canonical == "DEMO:OPTION"
+                        and existing.is_demo
+                        and existing.asset_class == "OPTION"
+                    ):
                         existing.expiry_date = date(2030, 12, 31)
                         existing.strike_price = Decimal("100")
                         existing.option_type = "CE"
                     continue
+
+                # Resolve underlying_id
+                underlying_id = None
+                if underlying_canonical and underlying_canonical in _canonical_to_id:
+                    underlying_id = _canonical_to_id[underlying_canonical]
+
                 instrument = Instrument(
-                    canonical_symbol=symbol,
-                    display_name=name,
-                    asset_class=asset,
+                    canonical_symbol=canonical,
+                    display_name=display_name,
+                    asset_class=asset_class,
                     exchange=exchange,
-                    segment="DEMO",
-                    expiry_date=date(2030, 12, 31) if asset == "OPTION" else None,
-                    strike_price=Decimal("100") if asset == "OPTION" else None,
-                    option_type="CE" if asset == "OPTION" else None,
+                    segment=segment,
+                    underlying_id=underlying_id,
+                    lot_size=lot_size if asset_class in ("FUTURES", "COMMODITY", "CRYPTO") else None,
+                    tick_size=tick_size,
+                    currency=currency,
                 )
                 db.add(instrument)
                 db.flush()
+                _canonical_to_id[canonical] = instrument.id
+
                 db.add(
                     ProviderSymbol(
                         instrument_id=instrument.id,
                         provider="DEMO",
-                        provider_instrument_key=symbol,
+                        provider_instrument_key=canonical,
                     )
                 )
-            db.add(AuditLog(event_type="demo_seed"))
+
+            # -- 3f. Provider-specific mappings (DHAN tokens, MT5 symbols) ---
+
+            # DHAN NSE index tokens
+            for canonical, info in phase3.DHAN_NSE_INDEX_TOKENS.items():
+                inst_id = _canonical_to_id.get(canonical)
+                if inst_id is None:
+                    continue
+                existing = db.scalar(
+                    select(ProviderSymbol).where(
+                        ProviderSymbol.instrument_id == inst_id,
+                        ProviderSymbol.provider == "DHAN",
+                    )
+                )
+                if existing is None:
+                    db.add(
+                        ProviderSymbol(
+                            instrument_id=inst_id,
+                            provider="DHAN",
+                            provider_instrument_key=info["token"],
+                            provider_exchange=info["exchange_segment"],
+                        )
+                    )
+
+            # DHAN BSE index tokens
+            for canonical, info in phase3.DHAN_BSE_INDEX_TOKENS.items():
+                inst_id = _canonical_to_id.get(canonical)
+                if inst_id is None:
+                    continue
+                existing = db.scalar(
+                    select(ProviderSymbol).where(
+                        ProviderSymbol.instrument_id == inst_id,
+                        ProviderSymbol.provider == "DHAN",
+                    )
+                )
+                if existing is None:
+                    db.add(
+                        ProviderSymbol(
+                            instrument_id=inst_id,
+                            provider="DHAN",
+                            provider_instrument_key=info["token"],
+                            provider_exchange=info["exchange_segment"],
+                        )
+                    )
+
+            # DHAN NSE equity tokens
+            for canonical, info in phase3.DHAN_NSE_EQ_TOKENS.items():
+                inst_id = _canonical_to_id.get(canonical)
+                if inst_id is None:
+                    continue
+                existing = db.scalar(
+                    select(ProviderSymbol).where(
+                        ProviderSymbol.instrument_id == inst_id,
+                        ProviderSymbol.provider == "DHAN",
+                    )
+                )
+                if existing is None:
+                    db.add(
+                        ProviderSymbol(
+                            instrument_id=inst_id,
+                            provider="DHAN",
+                            provider_instrument_key=info["token"],
+                            provider_exchange=info["exchange_segment"],
+                        )
+                    )
+
+            # MT5 provider mappings
+            for canonical, info in phase3.MT5_SYMBOLS.items():
+                inst_id = _canonical_to_id.get(canonical)
+                if inst_id is None:
+                    continue
+                existing = db.scalar(
+                    select(ProviderSymbol).where(
+                        ProviderSymbol.instrument_id == inst_id,
+                        ProviderSymbol.provider == "MT5",
+                    )
+                )
+                if existing is None:
+                    db.add(
+                        ProviderSymbol(
+                            instrument_id=inst_id,
+                            provider="MT5",
+                            provider_instrument_key=info["symbol"],
+                            provider_exchange="MT5",
+                        )
+                    )
+
+            db.add(AuditLog(event_type="demo_seed_phase3"))
         db.commit()
 
 

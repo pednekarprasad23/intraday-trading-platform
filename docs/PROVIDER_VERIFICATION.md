@@ -20,6 +20,12 @@ A further read-only check on 2026-11-07 authenticated successfully and searched 
 
 Still unresolved: instrument-master source and licensing, token and price semantics for selected instruments, account market-data entitlements (including the unsuccessful option LTP response), provider rate/subscription limits, and stable outbound static IP. Do not claim a live quote until a successful LTP call is observed.
 
+## Constituent and sector coverage gate
+
+No constituent, sector-membership, index-weight, or historical-reconstitution source is currently verified for this workspace. The existing Angel One and Dhan checks establish selected instrument lookup/historical access only; they do not provide an authorized index-universe snapshot or redistribution rights for constituent metadata. No constituent list, sector breadth, weight, or membership history is therefore published or used in research.
+
+Before implementation, record for each index and as-of date: authoritative source and license/redistribution terms, constituent denominator, security identifiers and exchange, sector taxonomy/version, constituent weight basis and sum, effective date versus publication/retrieval time, corporate-action/reconstitution treatment, and missing/ambiguous mappings. The eventual provider-neutral contract must distinguish an index universe snapshot from a live quote feed and must preserve the source receipt/hash and coverage gaps. Until those checks pass, constituent breadth and sector calculations remain unavailable rather than inferred from the instrument catalog.
+
 ## Phase 3 historical provenance
 
 The Phase 3 CSV fixtures are synthetic DEMO option bars, not licensed exchange/broker historical data. The import's `provider` + `provider_instrument_key` must resolve to exactly one preexisting option mapping; the SHA-256 identifies the exact input CSV bytes. Successful fixture import does not verify any real provider entitlement, activate `data_enabled`/`data_available`, or enable trading. Angel One historical entitlement, exact contract mapping and LTP are still unverified; no broker history endpoint is called.

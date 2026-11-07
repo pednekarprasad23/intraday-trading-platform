@@ -4,6 +4,7 @@ Phase 1 implementation: local research-only foundation. **Live trading is unavai
 
 - [Local setup and test commands](docs/LOCAL_DEVELOPMENT.md)
 - [Current project status](docs/PROJECT_STATUS.md)
+- [Platform phases](phases.md) and [task progress](progress.md)
 - [Approved architecture decisions](docs/ARCHITECTURE_DECISIONS.md)
 - [Changelog](docs/CHANGELOG.md)
 
