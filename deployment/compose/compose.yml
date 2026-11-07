@@ -30,6 +30,9 @@ services:
       APP_ENV: development
       DATABASE_URL: postgresql+psycopg://trading:${POSTGRES_PASSWORD}@db:5432/trading
       REDIS_URL: redis://redis:6379/0
+      HISTORICAL_DATA_ROOT: /var/lib/intraday/historical
+    volumes:
+      - historical_data:/var/lib/intraday/historical
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -51,5 +54,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  historical_data:
 networks:
   private:

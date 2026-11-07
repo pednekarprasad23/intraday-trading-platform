@@ -23,6 +23,14 @@ Phase 1 safety at that checkpoint: no live trading capability, broker SDK, real 
 - PostgreSQL restart: seven rows persisted.
 - HTTP end-to-end smoke: web, readiness, login, instrument/provider mapping list, status, logout and post-logout rejection passed using a temporary test account, subsequently removed.
 
+## Phase 3 — offline historical option-candle vertical slice
+
+Implemented a bounded, fixture-only import path for explicit synthetic 1m/5m option candles. The importer validates provider mapping and option metadata, explicit lowercase SHA-256, aware timestamps, deterministic IST session windows/alignment, Decimal OHLCV constraints, duplicates and conflicts; it never calls a broker or fills missing bars. Valid rows are stored in immutable content-addressed Parquet partitions under a persistent Compose volume, with PostgreSQL job/partition/gap metadata and idempotent source reruns. Authenticated paginated status, partition and gap summaries expose catalog data without filesystem paths. The demo command updates the illustrative option placeholder with non-tradeable metadata only.
+
+Phase 3 limitations: no authoritative exchange calendar or holiday inference, no broker historical entitlement, no live historical fetcher, and no atomic cross-resource transaction between filesystem and DB. A DB failure after file publication leaves an operator-diagnosable orphan; `historical-orphans` reports but never deletes it. Corrections to an occupied partition require review. The fixture source is not retained by the importer.
+
+Phase 3 verification: API image built successfully with PyArrow 23.0.1; Ruff check passed; backend pytest 16 passed with one pre-existing Starlette/httpx deprecation warning. Focused historical/migration tests passed (4). Frontend, Compose startup smoke, dependency audit, and full operational recovery drill were not rerun in this continuation.
+
 ## Remaining verification and limitations
 
 - GitHub-hosted CI has not been checked for the current uncommitted continuation; earlier Phase 1 and Phase 2 foundation commits were pushed to the configured origin.

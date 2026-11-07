@@ -16,7 +16,13 @@ On 2026-11-07 the official `SmartConnect.generateSession(clientCode, password, t
 
 A privately supplied credential set was used for a redacted, read-only server-side authentication check on 2026-11-07; authentication succeeded. An allowlisted NSE index instrument search returned HTTP 200 but a broker-level unsuccessful response (`success: false`), so no mapping was verified and no LTP call was made. The worker recognizes both `status` and `success` success envelopes but rejects explicit failures and contradictory flags. Tokens and credentials were not printed or committed.
 
-Still unresolved: instrument-master source and licensing, token and price semantics for selected instruments, account market-data entitlements, provider rate/subscription limits, and stable outbound static IP. Do not claim a live quote until an allowlisted verified instrument and successful LTP call are observed.
+A further read-only check on 2026-11-07 authenticated successfully and searched `NFO:NIFTY`. The broker returned option-like rows and one exact exchange/symbol/token match for a selected NIFTY call contract. A single `getLtpData` request for that exact match returned HTTP 200 with an unsuccessful broker response; no price was accepted or published. This establishes that option lookup can work but **does not** establish LTP entitlement, usable price semantics, or an operational option feed. No additional LTP attempts were made.
+
+Still unresolved: instrument-master source and licensing, token and price semantics for selected instruments, account market-data entitlements (including the unsuccessful option LTP response), provider rate/subscription limits, and stable outbound static IP. Do not claim a live quote until a successful LTP call is observed.
+
+## Phase 3 historical provenance
+
+The Phase 3 CSV fixtures are synthetic DEMO option bars, not licensed exchange/broker historical data. The import's `provider` + `provider_instrument_key` must resolve to exactly one preexisting option mapping; the SHA-256 identifies the exact input CSV bytes. Successful fixture import does not verify any real provider entitlement, activate `data_enabled`/`data_available`, or enable trading. Angel One historical entitlement, exact contract mapping and LTP are still unverified; no broker history endpoint is called.
 
 ## MT5
 

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     mt5_snapshot_path: str | None = None
     angelone_snapshot_path: str | None = None
     angelone_enabled: bool = False
+    historical_data_root: str = "/var/lib/intraday/historical"
 
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=False, extra="ignore"

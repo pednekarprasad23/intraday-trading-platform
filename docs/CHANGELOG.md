@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-07 — Phase 3 offline fixture ingestion checkpoint
+
+- Added explicit IST 1m/5m synthetic option CSV validation, source hashing, duplicate/conflict rejection and missing-slot reports with no synthetic gap filling.
+- Added immutable content-addressed Parquet partitions, import/partition/gap catalog migration, idempotent operator command, orphan diagnostic, authenticated bounded read-only summaries, and persistent Compose volume.
+- Kept broker calls, strategy/backtest, order paths, data entitlements and execution flags out of scope.
+
 ## 2026-11-07 — Phase 1 local foundation
 
 - Added containerized FastAPI, PostgreSQL, Redis and Vite/React frontend.

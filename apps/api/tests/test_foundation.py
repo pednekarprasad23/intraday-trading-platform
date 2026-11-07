@@ -67,6 +67,14 @@ def test_health_and_auth(tmp_path, monkeypatch):
         with TestClient(main.app) as client:
             assert client.get("/api/v1/health/live").json() == {"status": "ok"}
             assert client.get("/api/v1/instruments").status_code == 401
+            assert client.get("/api/v1/historical/imports").status_code == 401
+            assert client.get("/api/v1/historical/partitions").status_code == 401
+            assert (
+                client.get(
+                    "/api/v1/historical/imports/00000000-0000-0000-0000-000000000000/gaps"
+                ).status_code
+                == 401
+            )
             assert (
                 client.post(
                     "/api/v1/auth/login",
@@ -84,6 +92,24 @@ def test_health_and_auth(tmp_path, monkeypatch):
             assert login.status_code == 200
             assert "httponly" in login.headers["set-cookie"].lower()
             assert client.get("/api/v1/instruments?search=NIFTY").json()["total"] == 1
+            assert client.get("/api/v1/historical/imports").json() == {
+                "total": 0,
+                "items": [],
+            }
+            assert client.get("/api/v1/historical/partitions").json() == {
+                "total": 0,
+                "items": [],
+            }
+            assert client.get("/api/v1/historical/imports?limit=101").status_code == 422
+            assert (
+                client.get("/api/v1/historical/partitions?offset=-1").status_code == 422
+            )
+            assert (
+                client.get(
+                    "/api/v1/historical/imports/00000000-0000-0000-0000-000000000000/gaps"
+                ).status_code
+                == 404
+            )
             assert (
                 client.get("/api/v1/system/status").json()["live_trading_enabled"]
                 is False

@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.historical.routes import router as historical_router
 from app.database import engine, get_db
 from app.models import Instrument, ProviderSymbol
 from app.market_data.mt5 import router as mt5_router
@@ -23,6 +24,7 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 app.include_router(auth_router)
 app.include_router(mt5_router)
 app.include_router(angelone_router)
+app.include_router(historical_router)
 
 
 @app.middleware("http")

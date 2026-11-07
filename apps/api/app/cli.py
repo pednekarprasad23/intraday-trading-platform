@@ -2,6 +2,13 @@
 
 import argparse
 import getpass
+from datetime import date, time
+from decimal import Decimal
+from pathlib import Path
+
+from app.config import get_settings
+from app.historical.importer import import_fixture, orphan_files
+from app.models import HistoricalPartition
 
 from sqlalchemy import select
 
@@ -12,9 +19,61 @@ from app.models import AuditLog, Instrument, ProviderSymbol, User
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["bootstrap", "seed-demo"])
+    parser.add_argument(
+        "command",
+        choices=["bootstrap", "seed-demo", "import-candles", "historical-orphans"],
+    )
+    parser.add_argument("--file", type=Path)
+    parser.add_argument("--provider")
+    parser.add_argument("--provider-key")
+    parser.add_argument("--timeframe", choices=["1m", "5m"])
+    parser.add_argument("--session-date", type=date.fromisoformat)
+    parser.add_argument("--session-start", type=time.fromisoformat)
+    parser.add_argument("--session-end", type=time.fromisoformat)
+    parser.add_argument("--source-sha256")
     args = parser.parse_args()
     with SessionLocal() as db:
+        if args.command == "historical-orphans":
+            catalog = set(db.scalars(select(HistoricalPartition.relative_path)).all())
+            for relative in orphan_files(
+                Path(get_settings().historical_data_root), catalog
+            ):
+                print(relative)
+            return
+        if args.command == "import-candles":
+            if any(
+                value is None
+                for value in (
+                    args.file,
+                    args.provider,
+                    args.provider_key,
+                    args.timeframe,
+                    args.session_date,
+                    args.session_start,
+                    args.session_end,
+                    args.source_sha256,
+                )
+            ):
+                parser.error(
+                    "import-candles requires --file, --provider, --provider-key, --timeframe, --session-date, --session-start, --session-end and --source-sha256"
+                )
+            job = import_fixture(
+                db,
+                args.file,
+                Path(get_settings().historical_data_root),
+                provider=args.provider,
+                provider_key=args.provider_key,
+                timeframe=args.timeframe,
+                session_date=args.session_date,
+                session_start=args.session_start,
+                session_end=args.session_end,
+                source_sha256=args.source_sha256,
+            )
+            db.commit()
+            print(
+                f"Import {job.id}: {job.status}, rows={job.row_count}, duplicates={job.duplicate_count}, gaps={job.gap_count}"
+            )
+            return
         if args.command == "bootstrap":
             if db.scalar(select(User)):
                 raise SystemExit("A user already exists; bootstrap refused")
@@ -41,9 +100,14 @@ def main():
                 ("DEMO:GOLD", "Gold placeholder (DEMO)", "COMMODITY", "DEMO"),
                 ("DEMO:BTC", "BTC placeholder (DEMO)", "CRYPTO", "DEMO"),
             ]:
-                if db.scalar(
+                existing = db.scalar(
                     select(Instrument).where(Instrument.canonical_symbol == symbol)
-                ):
+                )
+                if existing:
+                    if symbol == "DEMO:OPTION" and existing.is_demo:
+                        existing.expiry_date = date(2030, 12, 31)
+                        existing.strike_price = Decimal("100")
+                        existing.option_type = "CE"
                     continue
                 instrument = Instrument(
                     canonical_symbol=symbol,
@@ -51,6 +115,9 @@ def main():
                     asset_class=asset,
                     exchange=exchange,
                     segment="DEMO",
+                    expiry_date=date(2030, 12, 31) if asset == "OPTION" else None,
+                    strike_price=Decimal("100") if asset == "OPTION" else None,
+                    option_type="CE" if asset == "OPTION" else None,
                 )
                 db.add(instrument)
                 db.flush()
