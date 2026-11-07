@@ -16,4 +16,17 @@
 - Added provider-independent market-data contracts, deterministic mock provider, freshness/reconnect monitor, and offline Angel One decoder.
 - Added instrument metadata migration/import validation and data-driven demo provenance.
 - Installed Python 3.13.17 and verified the official MetaTrader5 cp313 Windows wheel in an isolated environment.
-- Added separately isolated read-only MT5 bridge facade and tests; real terminal connectivity remains pending.
+- Added separately isolated read-only MT5 bridge facade and tests; real terminal connectivity was pending at the foundation checkpoint.
+
+## 2026-11-07 — Read-only MT5 continuation in progress
+
+- Confirmed the installed Windows MT5 terminal connects through Python 3.13 with read-only account and positions availability checks; no identifying or financial values were printed.
+- Extended the allowlisted bridge and added an outbound atomic snapshot worker with no network listener or command channel.
+- Added a disabled-by-default Compose read-only mount, authenticated API snapshot validation and expiry, and a read-only UI showing account, positions, bounded raw history and bid/ask provenance.
+- Angel One was initially offline; no order capability was introduced. Optional end-to-end Compose activation and host ACL review remain pending.
+
+## 2026-11-07 — Angel One read-only connector progress
+
+- Verified the official server-side login and LTP paths; the registered browser callback is not used.
+- Added a separate outbound-only worker with private process credentials, in-memory TOTP/JWT, bounded instrument list, and a secret-free atomic snapshot. Added disabled-by-default read-only API mount/route and UI with explicit timestamp-quality labels.
+- Performed a redacted real authentication test successfully using private credentials. An allowlisted NSE index search returned a broker-level unsuccessful response; no token was verified and no LTP call was made. Added offline coverage of both success-envelope shapes and failure rejection. Verified instrument mapping and entitlement remain pending; no Angel One order call or route exists.

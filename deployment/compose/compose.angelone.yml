@@ -1,0 +1,14 @@
+# Optional: mount a private Angel One snapshot directory read-only.
+# This does not start the worker or expose a callback endpoint.
+services:
+  api:
+    environment:
+      ANGELONE_ENABLED: "true"
+      ANGELONE_SNAPSHOT_PATH: /run/angelone/snapshot.json
+    volumes:
+      - type: bind
+        source: ${ANGELONE_SNAPSHOT_DIR:?Set an absolute private snapshot directory}
+        target: /run/angelone
+        read_only: true
+        bind:
+          create_host_path: false

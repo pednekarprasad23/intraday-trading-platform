@@ -1,19 +1,33 @@
 # Windows MT5 read-only bridge
 
-This package is isolated from the Linux FastAPI container and is intended for the Windows host where the MetaTrader 5 desktop terminal is installed. It exposes no network listener and contains no order method. `ReadOnlyBridge` allows only terminal initialization/status and bounded symbol quotes through an injected terminal object.
+Windows CPython 3.13.17 and MetaTrader5 5.0.6231 are installed in the isolated `.venv`. On 2026-11-07 the already-running terminal at `C:\Program Files\MetaTrader 5\terminal64.exe` passed a redacted initialization, connectivity, account availability and positions-read check. No order operations were called.
 
-## Host prerequisite verified
+## Transport
 
-- Official Windows CPython **3.13.17 (64-bit)** installed with `winget` as `Python.Python.3.13`.
-- `MetaTrader5==5.0.6231` has an official `cp313-cp313-win_amd64` wheel and imports successfully in `services/mt5_bridge/.venv`.
-- The MT5 desktop terminal itself was not found in common installation directories and no live terminal/account connection was attempted. Real quote integration remains blocked until the user installs/opens the terminal and authorizes a read-only check.
+The Windows worker publishes an atomic JSON snapshot every 15 seconds. It accepts no network requests or commands from the API. The optional Compose override mounts a dedicated snapshot directory **read-only** into the API. The authenticated `/api/v1/mt5/snapshot` route validates a bounded file and withholds expired (45 seconds), disconnected, malformed or missing snapshots. Quote event age is checked separately. The default Compose stack does not enable this integration.
 
-## Local verification
+Snapshots contain sensitive financial data even though account identifiers are omitted. Use a dedicated local directory with Windows ACL access limited to the running user, SYSTEM, and the Docker runtime as needed. Do not use a shared, synchronized, public or repository-tracked directory. Do not expose Docker or application ports publicly. Directory ACL enforcement and actual host-to-container mount behavior still need deployment verification.
+
+## Optional activation (not yet verified end-to-end)
+
+Create and restrict the private directory first. Supply its absolute path as `MT5_SNAPSHOT_DIR` in the shell running Compose. Start the worker in an interactive terminal:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe" -m venv services\mt5_bridge\.venv
-& "services\mt5_bridge\.venv\Scripts\python.exe" -m pip install -r services\mt5_bridge\requirements.lock
+& "services\mt5_bridge\.venv\Scripts\python.exe" services\mt5_bridge\worker.py --terminal "C:\Program Files\MetaTrader 5\terminal64.exe" --output "<private-directory>\snapshot.json"
+```
+
+Add `--symbol` for each exact broker symbol (maximum 20), or `--once` for a single snapshot. No symbol selection or trading commands are performed. History is limited to seven days and 1,000 deals; larger results are reported unavailable, not truncated. Historical deals may include balance operations and are not a performance report.
+
+```powershell
+docker compose --env-file .env -p intraday -f deployment/compose/compose.yml -f deployment/compose/compose.mt5.yml up --build -d --wait
+```
+
+Sign in to view the MT5 section. Stop the worker with Ctrl+C; the UI expires its data. Do not run multiple workers against the same output file. The worker is not installed as an automatic service.
+
+## Tests
+
+```powershell
 & "services\mt5_bridge\.venv\Scripts\python.exe" -m pytest -q -c services\mt5_bridge\pytest.ini services\mt5_bridge\tests
 ```
 
-Do not expose this bridge publicly, add a generic RPC endpoint, pass broker credentials through command arguments, or add order methods. A future authenticated loopback/outbound integration needs a separately approved network design, secret handling, terminal lifecycle policy, and reconciliation safety review. The `MetaTrader5` module communicates with a locally installed terminal; it is not suitable for import into the Linux API image.
+No order methods, generic RPC, login endpoints, broker credentials, or Linux MT5 imports are permitted. Angel One remains offline and separate.

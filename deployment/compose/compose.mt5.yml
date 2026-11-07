@@ -1,0 +1,13 @@
+# Optional: mount a private Windows-host snapshot directory read-only.
+# Set MT5_SNAPSHOT_DIR to its absolute host path before enabling this override.
+services:
+  api:
+    environment:
+      MT5_SNAPSHOT_PATH: /run/mt5/snapshot.json
+    volumes:
+      - type: bind
+        source: ${MT5_SNAPSHOT_DIR:?Set an absolute private snapshot directory}
+        target: /run/mt5
+        read_only: true
+        bind:
+          create_host_path: false

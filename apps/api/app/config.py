@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+pysqlite:///:memory:"
     redis_url: str = "redis://localhost:6379/0"
     session_ttl_seconds: int = 3600
+    mt5_snapshot_path: str | None = None
+    angelone_snapshot_path: str | None = None
+    angelone_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=False, extra="ignore"

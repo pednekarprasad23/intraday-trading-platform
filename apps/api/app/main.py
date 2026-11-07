@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import engine, get_db
 from app.models import Instrument, ProviderSymbol
+from app.market_data.mt5 import router as mt5_router
+from app.market_data.angelone import router as angelone_router
 from app.auth import router as auth_router, require_user
 from sqlalchemy import func
 
@@ -19,6 +21,8 @@ logging.basicConfig(
 logger = logging.getLogger("intraday.api")
 app = FastAPI(title=settings.app_name, version=settings.app_version)
 app.include_router(auth_router)
+app.include_router(mt5_router)
+app.include_router(angelone_router)
 
 
 @app.middleware("http")

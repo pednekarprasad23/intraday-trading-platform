@@ -2,7 +2,7 @@
 
 ## Scope and prerequisites
 
-Docker with Linux containers and Compose is required. Node 22+ is optional for frontend development. Python runs in Docker; the current Windows host has no Python installation. This is a loopback-only development stack, not a production deployment. HTTP cookies omit Secure only in development; do not expose these ports publicly.
+Docker with Linux containers and Compose is required. Node 22+ is optional for frontend development. The API uses Python in Docker. Windows CPython 3.13.17 is installed separately for the optional MT5 worker; see `services/mt5_bridge/README.md` for private snapshot setup. This is a loopback-only development stack, not a production deployment. HTTP cookies omit Secure only in development; do not expose these ports publicly.
 
 ## Start (from repository root)
 
@@ -37,4 +37,4 @@ Local HTTP is deliberately not HTTPS. Production TLS, MFA/recovery, backup/resto
 
 ## Phase 2 provider notes
 
-Angel One is the selected provider direction, but Phase 2's current adapter boundary is offline-only until official access, entitlements, instrument-master source, and current WebSocket behavior are reviewed and explicitly configured. Never place TOTP seeds or SmartAPI tokens in this repository. The MT5 bridge is separate and Windows-only; see `services/mt5_bridge/README.md`.
+Angel One read-only server-side authentication was verified on 2026-11-07, but market-data fetching still requires an explicitly verified instrument/token mapping and entitlement. The registered redirect callback is not used by this server-side login flow; do not forward a public callback to the local app. See `services/angelone_worker/README.md` for the optional outbound-only worker. Never place TOTP seeds or SmartAPI tokens in the repository. The separate Windows-only MT5 bridge is described in `services/mt5_bridge/README.md`.
