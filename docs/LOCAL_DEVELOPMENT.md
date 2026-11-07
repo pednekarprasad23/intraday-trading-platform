@@ -34,3 +34,7 @@ Backend direct dependencies are in `requirements.txt`, resolved Linux/Python 3.1
 Sessions are random opaque tokens; only token hashes are Redis keys. Logout deletes the session and server-side TTL expires it after one hour. Redis failure fails authentication closed. Argon2id hashes passwords. Global single-user login throttling permits ten attempts per minute. SameSite Strict and origin checking protect browser mutations. Audit events contain no passwords or tokens. There are no order endpoints or broker dependencies.
 
 Local HTTP is deliberately not HTTPS. Production TLS, MFA/recovery, backup/restore drills, external monitoring, static egress, and cloud deployment remain deferred. All fixtures are illustrative, including the option placeholder; they are not executable contracts or historical market data. Trading mode is a safety label, not a claim that a simulator exists.
+
+## Phase 2 provider notes
+
+Angel One is the selected provider direction, but Phase 2's current adapter boundary is offline-only until official access, entitlements, instrument-master source, and current WebSocket behavior are reviewed and explicitly configured. Never place TOTP seeds or SmartAPI tokens in this repository. The MT5 bridge is separate and Windows-only; see `services/mt5_bridge/README.md`.

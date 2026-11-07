@@ -81,6 +81,8 @@ def system_status():
         "trading_mode": "PAPER_ONLY",
         "live_trading_enabled": False,
         "market_data": "not_connected",
+        "market_provider": "none",
+        "market_data_provenance": "unavailable",
         "demo_data": True,
         "dependencies": dependency_health(),
     }
@@ -126,7 +128,7 @@ def instruments(
             "is_active": row.is_active,
             "data_available": row.data_available,
             "execution_enabled": row.execution_enabled,
-            "demo": True,
+            "demo": row.is_demo,
         }
         for row in rows
     ]
@@ -141,6 +143,10 @@ def instruments(
                 "provider": m.provider,
                 "provider_instrument_key": m.provider_instrument_key,
                 "data_enabled": m.data_enabled,
+                "provider_exchange": m.provider_exchange,
+                "last_verified_at": m.last_verified_at.isoformat()
+                if m.last_verified_at
+                else None,
                 "execution_enabled": m.execution_enabled,
             }
             for m in mappings

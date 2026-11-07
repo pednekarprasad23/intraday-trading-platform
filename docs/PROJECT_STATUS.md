@@ -34,6 +34,16 @@ Safety: no live trading capability, broker SDK, real feed, strategy, AI research
 - Recovery/MFA, immutable database-enforced audit retention, operational alerts, cloud backups, container-image vulnerability scanning and external exposure review remain future hardening work.
 - Lightweight Charts is intentionally not installed until charting has data and approved scope.
 
+## Phase 2 progress — read-only market-data foundation
+
+- User-selected direction recorded: Angel One API; MT5 remains a separate Windows-host bridge.
+- Added broker-independent Quote/provider contracts, deterministic mock events, Decimal/timestamp validation, freshness monitor, heartbeat quality, bounded reconnect backoff and auth-failure state.
+- Added offline Angel One decoder that rejects unknown tokens and unverified price units; no Angel One SDK, credentials, network connection or order capability was added.
+- Added instrument metadata migration and validated idempotent import service; demo provenance is now data-driven rather than hard-coded in the API response.
+- Installed and verified official Windows CPython 3.13.17 64-bit and `MetaTrader5==5.0.6231` cp313 wheel in an isolated bridge environment.
+- Added a read-only, offline-tested MT5 facade with no network listener and no order methods. Real terminal connectivity remains unverified because no MT5 desktop installation was found and no account was connected.
+- Tests: backend 8 passed; Windows bridge 1 passed. Backend has one existing httpx/Starlette deprecation warning.
+
 ## Next step
 
 Review this Phase 1 checkpoint and remaining verification gaps before declaring the foundation production-ready (it is not). Do not begin Phase 2 without explicit approval. Phase 2 planning must settle the intended provider (DhanHQ versus original Angel One/MT5 vision), authorized data access and current official API capabilities.

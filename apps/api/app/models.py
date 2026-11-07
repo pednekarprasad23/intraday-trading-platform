@@ -56,6 +56,7 @@ class Instrument(Base):
     data_available: Mapped[bool] = mapped_column(Boolean, default=False)
     execution_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     metadata_source: Mapped[str] = mapped_column(String(100), default="DEMO_FIXTURE")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -74,6 +75,16 @@ class ProviderSymbol(Base):
     provider_instrument_key: Mapped[str] = mapped_column(String(200))
     data_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     execution_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    provider_exchange: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    valid_from: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    valid_to: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class AuditLog(Base):
