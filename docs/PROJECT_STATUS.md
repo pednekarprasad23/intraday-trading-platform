@@ -35,6 +35,10 @@ Phase 3 verification: API image built successfully with PyArrow 23.0.1; Ruff che
 
 Added versioned frozen Decimal/UTC strategy contracts, pure EMA/RSI/ATR/VWAP indicators, an explicitly registered bounded option-premium reference rule, and an operator-only evaluation command against exact Phase 3 fixture provenance. Migration `0004` stores immutable configuration versions and exact accepted signal snapshots. No broker calls, order APIs, dynamic plugins or Phase 5 backtesting/catalog reader are included. See [Phase 4 strategies](PHASE_4_STRATEGIES.md). Backend verification: 21 tests passed (one existing Starlette/httpx deprecation warning); Ruff lint and format passed, including SQLite `0004` migration roundtrip. PostgreSQL migration/Compose smoke and audits were not performed in this checkout. The tiny Phase 3 fixtures cannot establish performance; no live prediction claims are made.
 
+## Phase 5 — reproducible offline option-premium backtest checkpoint
+
+Added a verified bounded Phase 3 catalog reader, deterministic completed-bar/next-open long-premium simulation, conservative OHLC ambiguity and gap handling, configurable Decimal costs, immutable in-memory event/trade results and fingerprints, defined-or-null metrics, and bounded expanding walk-forward folds with training-only selection. Exact contract metadata and complete explicit sessions are required; rolling relative-strike series, provider mixing, catalog gaps and damaged Parquet are rejected. See [Phase 5 backtesting](PHASE_5_BACKTESTING.md). Backend verification: Ruff passed; 25 tests passed with one existing Starlette/httpx warning. Persistence migration/read-only reports were not needed for this in-memory/CLI slice and are not implemented; PostgreSQL/Compose smoke and audits were not rerun.
+
 ## Remaining verification and limitations
 
 - GitHub-hosted CI has not been checked for the current uncommitted continuation; earlier Phase 1 and Phase 2 foundation commits were pushed to the configured origin.

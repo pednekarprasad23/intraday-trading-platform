@@ -8,6 +8,9 @@ from pathlib import Path
 
 from app.config import get_settings
 from app.historical.importer import import_fixture, orphan_files
+from app.historical.reader import read_sessions
+from app.backtesting.engine import SimulationConfig, run
+from app.backtesting.walk_forward import walk_forward
 from app.models import HistoricalPartition
 from app.strategies.contracts import StrategyConfig
 from app.strategy_evaluation import evaluate_fixture
@@ -30,6 +33,8 @@ def main():
             "import-candles",
             "historical-orphans",
             "evaluate-strategy",
+            "backtest",
+            "walk-forward",
         ],
     )
     parser.add_argument("--file", type=Path)
@@ -46,8 +51,77 @@ def main():
     parser.add_argument("--rsi-period", type=int, default=3)
     parser.add_argument("--rsi-floor", type=Decimal, default=Decimal("40"))
     parser.add_argument("--rsi-ceiling", type=Decimal, default=Decimal("100"))
+    parser.add_argument("--instrument-id", type=UUID)
+    parser.add_argument("--dates", type=date.fromisoformat, nargs="+")
+    parser.add_argument("--quantity", type=Decimal, default=Decimal("1"))
+    parser.add_argument("--fee-per-side", type=Decimal, default=Decimal("0"))
+    parser.add_argument("--tax-rate", type=Decimal, default=Decimal("0"))
+    parser.add_argument("--slippage", type=Decimal, default=Decimal("0"))
+    parser.add_argument("--spread", type=Decimal, default=Decimal("0"))
+    parser.add_argument("--stop-fraction", type=Decimal, default=Decimal("0.1"))
+    parser.add_argument("--target-fraction", type=Decimal, default=Decimal("0.2"))
+    parser.add_argument("--train-size", type=int, default=2)
+    parser.add_argument("--test-size", type=int, default=1)
     args = parser.parse_args()
     with SessionLocal() as db:
+        if args.command in {"backtest", "walk-forward"}:
+            if (
+                not args.provider
+                or not args.instrument_id
+                or not args.timeframe
+                or not args.dates
+            ):
+                parser.error(
+                    "backtest/walk-forward requires --provider --instrument-id --timeframe --dates"
+                )
+            sessions = read_sessions(
+                db,
+                Path(get_settings().historical_data_root),
+                provider=args.provider,
+                instrument_id=args.instrument_id,
+                timeframe=args.timeframe,
+                dates=tuple(args.dates),
+            )
+            strategy = StrategyConfig(
+                "option-premium-ema-rsi",
+                1,
+                args.fast_period,
+                args.slow_period,
+                args.rsi_period,
+                args.rsi_floor,
+                args.rsi_ceiling,
+            )
+            simulation = SimulationConfig(
+                args.quantity,
+                args.fee_per_side,
+                args.tax_rate,
+                args.slippage,
+                args.spread,
+                args.stop_fraction,
+                args.target_fraction,
+            )
+            if args.command == "backtest":
+                result = run(sessions, strategy, simulation)
+                print(
+                    f"SIMULATED ONLY: fingerprint={result.fingerprint} metrics={result.metrics}"
+                )
+                for trade in result.trades:
+                    print(trade)
+            else:
+                folds = walk_forward(
+                    sessions,
+                    (strategy,),
+                    simulation,
+                    train_size=args.train_size,
+                    test_size=args.test_size,
+                )
+                for fold in folds:
+                    print(
+                        f"SIMULATED OOS: train={fold.training_dates} test={fold.test_dates} "
+                        f"chosen={fold.chosen} metrics={fold.test.metrics} "
+                        f"fingerprint={fold.test.fingerprint}"
+                    )
+            return
         if args.command == "evaluate-strategy":
             if args.file is None or args.job_id is None:
                 parser.error("evaluate-strategy requires --file and --job-id")

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-07 — Phase 5 offline simulation checkpoint
+
+- Added bounded verified Parquet catalog reads for explicit exact-contract sessions, with checksum, schema, chronology and coverage rejection.
+- Added deterministic next-bar simulated entries, conservative exit/cost assumptions, reproducible ledgers/metrics and training-only walk-forward folds; operator CLI and synthetic fixture tests.
+- Documented no broker/paper execution and omitted persistence, API reports and automated contract selection in [Phase 5 backtesting](PHASE_5_BACKTESTING.md).
+
 ## 2026-11-07 — Phase 4 strategies checkpoint
 
 - Added frozen Decimal/UTC strategy contracts, pure indicators, bounded option-premium reference strategy and explicit built-in registry.
