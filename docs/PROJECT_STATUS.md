@@ -31,6 +31,10 @@ Phase 3 limitations: no authoritative exchange calendar or holiday inference, no
 
 Phase 3 verification: API image built successfully with PyArrow 23.0.1; Ruff check passed; backend pytest 16 passed with one pre-existing Starlette/httpx deprecation warning. Focused historical/migration tests passed (4). Frontend, Compose startup smoke, dependency audit, and full operational recovery drill were not rerun in this continuation.
 
+## Phase 4 — deterministic research signals checkpoint
+
+Added versioned frozen Decimal/UTC strategy contracts, pure EMA/RSI/ATR/VWAP indicators, an explicitly registered bounded option-premium reference rule, and an operator-only evaluation command against exact Phase 3 fixture provenance. Migration `0004` stores immutable configuration versions and exact accepted signal snapshots. No broker calls, order APIs, dynamic plugins or Phase 5 backtesting/catalog reader are included. See [Phase 4 strategies](PHASE_4_STRATEGIES.md). Backend verification: 21 tests passed (one existing Starlette/httpx deprecation warning); Ruff lint and format passed, including SQLite `0004` migration roundtrip. PostgreSQL migration/Compose smoke and audits were not performed in this checkout. The tiny Phase 3 fixtures cannot establish performance; no live prediction claims are made.
+
 ## Remaining verification and limitations
 
 - GitHub-hosted CI has not been checked for the current uncommitted continuation; earlier Phase 1 and Phase 2 foundation commits were pushed to the configured origin.

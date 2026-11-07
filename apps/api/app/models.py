@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Numeric,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -168,6 +169,48 @@ class HistoricalGap(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     job_id: Mapped[UUID] = mapped_column(ForeignKey("historical_import_jobs.id"))
     bar_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class StrategyVersion(Base):
+    __tablename__ = "strategy_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "strategy_id", "version", "config_sha256", name="uq_strategy_config"
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    strategy_id: Mapped[str] = mapped_column(String(100))
+    version: Mapped[int] = mapped_column()
+    config_sha256: Mapped[str] = mapped_column(String(64))
+    config: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class StrategySignal(Base):
+    __tablename__ = "strategy_signals"
+    __table_args__ = (
+        UniqueConstraint(
+            "strategy_version_id",
+            "partition_id",
+            "input_sha256",
+            name="uq_strategy_signal_input",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    strategy_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("strategy_versions.id")
+    )
+    instrument_id: Mapped[UUID] = mapped_column(ForeignKey("instruments.id"))
+    partition_id: Mapped[UUID] = mapped_column(ForeignKey("historical_partitions.id"))
+    decision_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    direction: Mapped[str] = mapped_column(String(10))
+    input_sha256: Mapped[str] = mapped_column(String(64))
+    snapshot: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )

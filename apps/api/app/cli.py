@@ -9,6 +9,9 @@ from pathlib import Path
 from app.config import get_settings
 from app.historical.importer import import_fixture, orphan_files
 from app.models import HistoricalPartition
+from app.strategies.contracts import StrategyConfig
+from app.strategy_evaluation import evaluate_fixture
+from uuid import UUID
 
 from sqlalchemy import select
 
@@ -21,7 +24,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "command",
-        choices=["bootstrap", "seed-demo", "import-candles", "historical-orphans"],
+        choices=[
+            "bootstrap",
+            "seed-demo",
+            "import-candles",
+            "historical-orphans",
+            "evaluate-strategy",
+        ],
     )
     parser.add_argument("--file", type=Path)
     parser.add_argument("--provider")
@@ -31,8 +40,37 @@ def main():
     parser.add_argument("--session-start", type=time.fromisoformat)
     parser.add_argument("--session-end", type=time.fromisoformat)
     parser.add_argument("--source-sha256")
+    parser.add_argument("--job-id", type=UUID)
+    parser.add_argument("--fast-period", type=int, default=3)
+    parser.add_argument("--slow-period", type=int, default=5)
+    parser.add_argument("--rsi-period", type=int, default=3)
+    parser.add_argument("--rsi-floor", type=Decimal, default=Decimal("40"))
+    parser.add_argument("--rsi-ceiling", type=Decimal, default=Decimal("100"))
     args = parser.parse_args()
     with SessionLocal() as db:
+        if args.command == "evaluate-strategy":
+            if args.file is None or args.job_id is None:
+                parser.error("evaluate-strategy requires --file and --job-id")
+            result = evaluate_fixture(
+                db,
+                args.file,
+                job_id=args.job_id,
+                root=Path(get_settings().historical_data_root),
+                config=StrategyConfig(
+                    "option-premium-ema-rsi",
+                    1,
+                    args.fast_period,
+                    args.slow_period,
+                    args.rsi_period,
+                    args.rsi_floor,
+                    args.rsi_ceiling,
+                ),
+            )
+            db.commit()
+            print(
+                f"Decision: {result.quality} {result.direction} reasons={result.reasons}"
+            )
+            return
         if args.command == "historical-orphans":
             catalog = set(db.scalars(select(HistoricalPartition.relative_path)).all())
             for relative in orphan_files(

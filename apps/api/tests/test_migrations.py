@@ -14,6 +14,10 @@ def test_migration_roundtrip(tmp_path, monkeypatch):
         command.upgrade(config, "head")
         assert "instruments" in inspect(create_engine(url)).get_table_names()
         assert "historical_partitions" in inspect(create_engine(url)).get_table_names()
+        assert "strategy_signals" in inspect(create_engine(url)).get_table_names()
+        command.downgrade(config, "0003_historical_candles")
+        assert "strategy_signals" not in inspect(create_engine(url)).get_table_names()
+        command.upgrade(config, "head")
         command.downgrade(config, "0002_market_metadata")
         assert (
             "historical_partitions" not in inspect(create_engine(url)).get_table_names()

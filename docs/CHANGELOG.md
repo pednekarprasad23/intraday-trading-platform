@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-07 — Phase 4 strategies checkpoint
+
+- Added frozen Decimal/UTC strategy contracts, pure indicators, bounded option-premium reference strategy and explicit built-in registry.
+- Added operator-only fixture evaluation against Phase 3 provenance, immutable version/signal snapshots and `0004` migration; no broker/order or Phase 5 functionality.
+- Documented research-only scope and rejection behavior in [Phase 4 strategies](PHASE_4_STRATEGIES.md).
+
 ## 2026-11-07 — Phase 3 offline fixture ingestion checkpoint
 
 - Added explicit IST 1m/5m synthetic option CSV validation, source hashing, duplicate/conflict rejection and missing-slot reports with no synthetic gap filling.
