@@ -121,7 +121,7 @@ class PaperOrder(Base):
     )
     strategy_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     strategy_version: Mapped[int | None] = mapped_column(nullable=True)
-    metadata: Mapped[str] = mapped_column(Text, default="{}")
+    order_metadata: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

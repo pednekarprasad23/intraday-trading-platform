@@ -316,7 +316,7 @@ def execute_paper_order(db: Session, order: PaperOrder) -> PaperExecutionResult:
     approved, reason = validate_order_risks(db, ctx)
     if not approved:
         order.state = PaperOrderState.REJECTED.value
-        order.metadata = str({**eval(order.metadata or "{}"), "rejection_reason": reason})
+        order.order_metadata = str({**eval(order.order_metadata or "{}"), "rejection_reason": reason})
         db.add(PaperRiskEvent(
             account_id=order.account_id,
             event_type=PaperRiskEventType.INSTRUMENT_BLOCKED,

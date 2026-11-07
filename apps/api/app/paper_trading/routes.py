@@ -3,11 +3,11 @@
 import json
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
@@ -26,7 +26,6 @@ from app.paper_trading.models import (
     PaperFill,
     PaperOrder,
     PaperOrderSide,
-    PaperOrderState,
     PaperOrderType,
     PaperPosition,
     PaperRiskEvent,
@@ -39,32 +38,18 @@ router = APIRouter(prefix="/api/v1/paper", dependencies=[Depends(require_user)])
 # Pydantic Schemas
 # ============================================================================
 
+
 class OrderRequest(BaseModel):
     """Request body for creating a paper order."""
 
-    instrument_id: Annotated[UUID, Field(description="Instrument to trade")]
-    side: Annotated[str, Field(description="buy or sell", pattern="^(buy|sell)$")]
-    quantity: Annotated[Decimal, Field(description="Quantity to trade", gt=0)]
-    order_type: Annotated[str, Field(default="market", description="Order type", pattern="^(market|limit|stop|stop_limit)$")] = "market"
-    price: Annotated[Decimal | None, Field(default=None, description="Limit price for limit orders", gt=0)] = None
-    stop_price: Annotated[Decimal | None, Field(default=None, description="Stop price for stop orders", gt=0)] = None
-    strategy_id: Annotated[str | None, Field(default=None, max_length=100)] = None
-    metadata: Annotated[dict[str, Any] | None, Field(default=None)] = None
-
-    @field_validator("price")
-    @classmethod
-    def validate_limit_price(cls, v: Decimal | None, info: Any) -> Decimal | None:
-        if v is not None and info.data.get("order_type") == "market":
-            raise ValueError("price must not be set for market orders")
-        return v
-
-    @field_validator("stop_price")
-    @classmethod
-    def validate_stop_price(cls, v: Decimal | None, info: Any) -> Decimal | None:
-        order_type = info.data.get("order_type")
-        if v is not None and order_type not in ("stop", "stop_limit"):
-            raise ValueError("stop_price only valid for stop orders")
-        return v
+    instrument_id: UUID = Field(description="Instrument to trade")
+    side: str = Field(description="buy or sell", pattern="^(buy|sell)$")
+    quantity: Decimal = Field(description="Quantity to trade", gt=0)
+    order_type: str = Field(default="market", description="Order type", pattern="^(market|limit|stop|stop_limit)$")
+    price: Decimal | None = Field(default=None, description="Limit price for limit orders")
+    stop_price: Decimal | None = Field(default=None, description="Stop price for stop orders")
+    strategy_id: str | None = Field(default=None, max_length=100)
+    metadata: dict[str, Any] | None = None
 
 
 class OrderResponse(BaseModel):
@@ -83,11 +68,8 @@ class OrderResponse(BaseModel):
     submitted_at: datetime | None = None
     filled_at: datetime | None = None
     rejected_reason: str | None = None
-    fills: Annotated[list[dict[str, Any]], Field(default_factory=list)] = []
+    fills: list[dict[str, Any]] = Field(default_factory=list)
     strategy_id: str | None = None
-
-    class Config:
-        from_attributes = True
 
 
 class PositionResponse(BaseModel):
@@ -105,9 +87,6 @@ class PositionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class KillSwitchResponse(BaseModel):
     """Kill switch status."""
@@ -123,9 +102,6 @@ class KillSwitchResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
-
 
 class RiskEventResponse(BaseModel):
     """Risk event response."""
@@ -139,14 +115,11 @@ class RiskEventResponse(BaseModel):
     blocked: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class KillSwitchControl(BaseModel):
     """Kill switch control request."""
 
-    reason: Annotated[str, Field(..., max_length=500)]
+    reason: str = Field(..., max_length=500)
 
 
 class PaginationResponse(BaseModel):
@@ -155,10 +128,6 @@ class PaginationResponse(BaseModel):
     total: int
     items: list[Any]
 
-
-# ============================================================================
-# Account Summary
-# ============================================================================
 
 class AccountSummaryResponse(BaseModel):
     """Paper trading account summary with capital, positions, and P&L."""
@@ -175,17 +144,15 @@ class AccountSummaryResponse(BaseModel):
     position_count: int
     open_position_value: Decimal
 
-    class Config:
-        from_attributes = True
-
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
+
 def get_active_account(db: Session) -> PaperAccount:
     """Get the first active paper account or raise 404."""
-    account = db.scalar(select(PaperAccount).where(PaperAccount.is_active == True))
+    account = db.scalar(select(PaperAccount).where(PaperAccount.is_active.is_(True)))
     if account is None:
         raise HTTPException(404, "No active paper trading account found")
     return account
@@ -228,6 +195,7 @@ def parse_details(details_str: str | dict[str, Any]) -> dict[str, Any]:
 # Account Summary Endpoint
 # ============================================================================
 
+
 @router.get("/summary", response_model=AccountSummaryResponse)
 def get_account_summary(
     db: Session = Depends(get_db),
@@ -235,7 +203,6 @@ def get_account_summary(
     """Get paper trading account summary with capital, positions, and P&L."""
     account = get_active_account(db)
 
-    # Get positions with instrument info
     positions = db.scalars(
         select(PaperPosition)
         .options(joinedload(PaperPosition.instrument))
@@ -268,18 +235,14 @@ def get_account_summary(
 # Orders Endpoints
 # ============================================================================
 
+
 @router.post("/orders", response_model=OrderResponse, status_code=201)
 def submit_order(
     body: OrderRequest,
     db: Session = Depends(get_db),
     user = Depends(require_user),
 ):
-    """Create and execute a paper order.
-
-    This endpoint creates a paper order and immediately executes it through
-    the risk validation pipeline. The order is either filled, partial, or rejected
-    based on risk checks.
-    """
+    """Create and execute a paper order."""
     account = get_active_account(db)
     instrument = get_instrument(db, body.instrument_id)
 
@@ -300,7 +263,6 @@ def submit_order(
 
     order = result.order
 
-    # Track rejection event if order was rejected
     if not result.success and result.rejected_reason:
         reason_lower = result.rejected_reason.lower()
         if "loss" in reason_lower:
@@ -346,23 +308,12 @@ def submit_order(
 
 @router.get("/orders", response_model=PaginationResponse)
 def list_orders(
-    state: Annotated[str | None, Query(None, pattern="^(pending|submitted|filled|partial|rejected|cancelled|expired|uncertain)$")] = None,
-    limit: Annotated[int, Query(50, ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(0, ge=0)] = 0,
+    state: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
-    """List paper orders with optional filtering by state.
-
-    Use the `state` query parameter to filter by order state:
-    - pending: Orders awaiting execution
-    - submitted: Orders submitted to the market
-    - filled: Orders fully filled
-    - partial: Orders partially filled
-    - rejected: Orders rejected by risk checks
-    - cancelled: Cancelled orders
-    - expired: Expired orders
-    - uncertain: Orders with ambiguous broker response
-    """
+    """List paper orders with optional filtering by state."""
     query = select(PaperOrder)
 
     if state:
@@ -406,11 +357,10 @@ def get_order(order_id: UUID, db: Session = Depends(get_db)):
 
     fills = [serialize_fill(f) for f in order.fills]
 
-    # Get rejection reason from metadata if available
     rejection_reason = None
     try:
-        metadata = parse_details(order.metadata)
-        rejection_reason = metadata.get("rejection_reason")
+        meta = parse_details(order.order_metadata)
+        rejection_reason = meta.get("rejection_reason")
     except Exception:
         pass
 
@@ -437,14 +387,12 @@ def get_order(order_id: UUID, db: Session = Depends(get_db)):
 # Positions Endpoints
 # ============================================================================
 
+
 @router.get("/positions", response_model=list[PositionResponse])
 def list_positions(
     db: Session = Depends(get_db),
 ):
-    """List all open positions for the default paper trading account.
-
-    Returns positions with current mark-to-market values.
-    """
+    """List all open positions for the default paper trading account."""
     account = get_active_account(db)
 
     positions = db.scalars(
@@ -478,17 +426,14 @@ def list_positions(
 # Kill Switch Endpoints
 # ============================================================================
 
+
 @router.post("/kill-switch", response_model=KillSwitchResponse, status_code=201)
 def trigger_kill_switch_endpoint(
     body: KillSwitchControl,
     db: Session = Depends(get_db),
     user = Depends(require_user),
 ):
-    """Trigger the kill switch.
-
-    Once triggered, no new orders can be submitted until the kill switch
-    is reset. This is a safety mechanism for emergency situations.
-    """
+    """Trigger the kill switch."""
     ks = engine_trigger_kill_switch(
         db=db,
         reason=body.reason,
@@ -516,12 +461,8 @@ def reset_kill_switch_endpoint(
     db: Session = Depends(get_db),
     user = Depends(require_user),
 ):
-    """Reset the kill switch after operator confirmation.
-
-    This will allow new orders to be submitted again.
-    """
+    """Reset the kill switch after operator confirmation."""
     try:
-        # Get current kill switch and reset it
         ks = db.scalar(select(KillSwitch).where(KillSwitch.name == "global"))
         if ks is None:
             raise HTTPException(404, "Kill switch not found")
@@ -555,13 +496,7 @@ def reset_kill_switch_endpoint(
 def get_kill_switch_status(
     db: Session = Depends(get_db),
 ):
-    """Check the current kill switch status.
-
-    Returns the state of the kill switch:
-    - armed: Normal operation, new orders allowed
-    - triggered: Kill switch active, new orders blocked
-    - reset_pending: Waiting for operator confirmation to fully reset
-    """
+    """Check the current kill switch status."""
     ks = db.scalar(select(KillSwitch).where(KillSwitch.name == "global"))
 
     if ks is None:
@@ -591,21 +526,16 @@ def get_kill_switch_status(
 # Risk Events Endpoints
 # ============================================================================
 
+
 @router.get("/risk-events", response_model=PaginationResponse)
 def list_risk_events(
-    event_type: Annotated[str | None, Query(None, pattern="^(daily_loss_limit|position_limit|exposure_limit|instrument_blocked|kill_switch|stale_data|insufficient_capital|max_orders_per_session)$")] = None,
-    blocked: Annotated[bool | None, Query(None)] = None,
-    limit: Annotated[int, Query(50, ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(0, ge=0)] = 0,
+    event_type: str | None = None,
+    blocked: bool | None = None,
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
-    """List recent risk events with optional filtering.
-
-    Risk events are logged whenever a risk check fails or a kill switch
-    is triggered. Use query parameters to filter:
-    - `event_type`: Filter by event type (daily_loss_limit, position_limit, exposure_limit, instrument_blocked, kill_switch, stale_data, insufficient_capital, max_orders_per_session)
-    - `blocked`: Filter by whether the action was blocked
-    """
+    """List recent risk events with optional filtering."""
     query = select(PaperRiskEvent)
 
     if event_type:
