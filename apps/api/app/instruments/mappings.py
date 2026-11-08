@@ -34,6 +34,8 @@ from typing import Literal
 # Internal helper types
 # ---------------------------------------------------------------------------
 
+VERSION = 1
+
 AssetClass = Literal["INDEX", "EQUITY", "FUTURES", "COMMODITY", "CRYPTO"]
 Exchange = Literal["NSE", "BSE", "DEMO", "MT5"]
 Segment = Literal[

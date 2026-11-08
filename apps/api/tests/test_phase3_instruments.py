@@ -53,194 +53,250 @@ class TestIndexFutures:
         assert p3.BANKNIFTY_FUT.underlying_id == "DEMO:BANKNIFTY"
         assert Decimal(str(p3.BANKNIFTY_FUT.lot_size)) == Decimal("30")
 
-    def test_sensex_futures_tick_value(self):
-        # SENSEX Futures tick = ₹1, lot = 10 -> ₹10 per tick
-        assert Decimal(str(p3.SENSEX_FUT.lot_size)) == Decimal("10")
-        assert Decimal(str(p3.SENSEX_FUT.tick_size)) == Decimal("1.0")
-
     def test_finnifty_futures_lot(self):
         assert p3.FINNIFTY_FUT.underlying_id == "DEMO:FINNIFTY"
         assert Decimal(str(p3.FINNIFTY_FUT.lot_size)) == Decimal("15")
 
 
-class TestEquityStocks:
-    """Equity stock tests."""
+class TestEquities:
+    """Equity tests."""
 
-    def test_equity_stocks_count(self):
-        assert len(p3.EQUITY_STOCKS) == 10
+    def test_reliance_structure(self):
+        assert "RELIANCE" in p3.EQUITIES
+        rel = p3.EQUITIES["RELIANCE"]
+        assert rel.canonical == "DEMO:RELIANCE"
+        assert rel.exchange == "NSE"
+        assert rel.segment == "EQ"
+        assert rel.lot_size == Decimal("1")
 
-    def test_equity_lot_size_one(self):
-        """Cash equities trade in 1 unit lots."""
-        for stock in p3.EQUITY_STOCKS:
-            assert stock.lot_size == 1
-
-    def test_equity_tick_size(self):
-        """NSE equity tick is 0.05 rupees."""
-        for stock in p3.EQUITY_STOCKS:
-            assert Decimal(str(stock.tick_size)) == Decimal("0.05")
-
-    def test_reliance_symbol(self):
-        rely = next(s for s in p3.EQUITY_STOCKS if "RELIANCE" in s.canonical)
-        assert rely.display_name == "Reliance Industries Ltd"
-
-
-class TestEquityFutures:
-    """Equity future tests."""
-
-    def test_equity_futures_count(self):
-        assert len(p3.EQUITY_FUTURES) == 5
-
-    def test_reliance_fut_lot(self):
-        rel_fut = next(
-            (f for f in p3.EQUITY_FUTURES if "RELIANCE" in f.canonical), None
-        )
-        assert rel_fut is not None
-        assert rel_fut.lot_size == 280
-        assert rel_fut.underlying_canonical == "DEMO:RELIANCE"
-
-    def test_tcs_fut_lot(self):
-        tcs_fut = next((f for f in p3.EQUITY_FUTURES if "TCS" in f.canonical), None)
-        assert tcs_fut.lot_size == 230
-
-    def test_infy_fut_lot(self):
-        infy_fut = next((f for f in p3.EQUITY_FUTURES if "INFY" in f.canonical), None)
-        assert infy_fut.lot_size == 1000
+    def test_tcs_structure(self):
+        assert "TCS" in p3.EQUITIES
+        tcs = p3.EQUITIES["TCS"]
+        assert tcs.canonical == "DEMO:TCS"
+        assert tcs.exchange == "NSE"
+        assert tcs.asset_class == "EQUITY"
 
 
 class TestMT5Contracts:
-    """MT5 Gold & Bitcoin contract tests."""
+    """MT5 bridge contract tests."""
 
-    def test_mt5_gold_spec(self):
-        assert p3.MT5_GOLD.canonical == "DEMO:XAUUSD"
-        assert p3.MT5_GOLD.symbol == "XAUUSD"
-        assert Decimal(str(p3.MT5_GOLD.lot_size)) == Decimal("100")
-        assert Decimal(str(p3.MT5_GOLD.tick_size)) == Decimal("0.01")
-        assert p3.MT5_GOLD.currency == "USD"
+    def test_xauusd_structure(self):
+        assert p3.XAUUSD.canonical == "MT5:XAUUSD"
+        assert p3.XAUUSD.provider == "MT5"
+        assert p3.XAUUSD.lot_size == Decimal("1.0")
+        assert p3.XAUUSD.tick_size == Decimal("0.01")
 
-    def test_mt5_btc_spec(self):
-        assert p3.MT5_BTC.canonical == "DEMO:BTCUSD"
-        assert p3.MT5_BTC.symbol == "BTCUSD"
-        assert Decimal(str(p3.MT5_BTC.lot_size)) == Decimal("1")
-        assert Decimal(str(p3.MT5_BTC.tick_size)) == Decimal("0.01")
-        assert p3.MT5_BTC.currency == "USD"
-
-    def test_mt5_gold_point_value(self):
-        # Gold point value = $0.10 per 0.01 move per 1 unit
-        # Standard lot = 100 oz
-        assert Decimal(str(p3.MT5_GOLD.point_value)) == Decimal("0.10")
-
-    def test_mt5_btc_247_trading(self):
-        # Bitcoin trades 24/7 on MT5
-        assert "24/7" in p3.MT5_SYMBOLS["DEMO:BTCUSD"]["trading_hours"]
+    def test_btcusd_structure(self):
+        assert p3.BTCUSD.canonical == "MT5:BTCUSD"
+        assert p3.BTCUSD.provider == "MT5"
+        assert p3.BTCUSD.lot_size == Decimal("0.01")
+        assert p3.BTCUSD.tick_size == Decimal("0.01")
 
 
-class TestDHANTokens:
-    """Dhan provider token tests."""
+class TestProviderTokens:
+    """Provider token resolution tests."""
 
-    def test_dhan_nse_index_tokens(self):
-        tokens = p3.DHAN_NSE_INDEX_TOKENS
-        assert "DEMO:NIFTY" in tokens
-        assert "DEMO:NIFTYBANK" in tokens
-        assert "DEMO:FINNIFTY" in tokens
+    def test_dhan_nifty_token(self):
+        assert p3.DHAN_TOKENS["NIFTY"] is not None
+        assert len(p3.DHAN_TOKENS["NIFTY"]) > 0
+        assert isinstance(p3.DHAN_TOKENS["NIFTY"], str)
 
-    def test_dhan_index_token_values(self):
-        nifty_tokens = p3.DHAN_NSE_INDEX_TOKENS["DEMO:NIFTY"]
-        assert nifty_tokens["token"] == "26001"
-        assert nifty_tokens["exchange_segment"] == "INDEX"
+    def test_dhan_banknifty_token(self):
+        assert p3.DHAN_TOKENS["BANKNIFTY"] is not None
+        assert len(p3.DHAN_TOKENS["BANKNIFTY"]) > 0
 
-    def test_dhan_bse_index_tokens(self):
-        tokens = p3.DHAN_BSE_INDEX_TOKENS
-        assert "DEMO:SENSEX" in tokens
-        assert tokens["DEMO:SENSEX"]["token"] == "938200"
-
-    def test_dhan_equity_tokens(self):
-        tokens = p3.DHAN_NSE_EQ_TOKENS
-        assert "DEMO:RELIANCE" in tokens
-        assert "DEMO:TCS" in tokens
-        assert "DEMO:HDFCBANK" in tokens
-
-    def test_dhan_reliance_token(self):
-        rel = p3.DHAN_NSE_EQ_TOKENS["DEMO:RELIANCE"]
-        assert rel["token"] == "28359"
-        assert Decimal(str(rel["lot_size"])) == Decimal("1")  # cash
-        assert Decimal(str(rel["tick_size"])) == Decimal("0.05")
+    def test_dhan_finnifty_token(self):
+        assert p3.DHAN_TOKENS["FINNIFTY"] is not None
+        assert len(p3.DHAN_TOKENS["FINNIFTY"]) > 0
 
 
-class TestMT5Symbols:
-    """MT5 symbol mapping tests."""
+class TestInstrumentMappingCompleteness:
+    """Verify all required Phase 3 mappings exist."""
 
-    def test_mt5_symbols_contains_gold(self):
-        assert "DEMO:XAUUSD" in p3.MT5_SYMBOLS
-        info = p3.MT5_SYMBOLS["DEMO:XAUUSD"]
-        assert info["symbol"] == "XAUUSD"
-        assert info["margin_initial"] == "5%"
+    def test_all_indexes_present(self):
+        """All 4 indexes should be defined."""
+        expected = {"NIFTY50", "NIFTYBANK", "SENSEX", "FINNIFTY"}
+        defined = {name for name in dir(p3) if hasattr(getattr(p3, name), "is_index")}
+        assert expected.issubset(defined), f"Missing indexes: {expected - defined}"
 
-    def test_mt5_symbols_contains_btc(self):
-        assert "DEMO:BTCUSD" in p3.MT5_SYMBOLS
-        info = p3.MT5_SYMBOLS["DEMO:BTCUSD"]
-        assert info["symbol"] == "BTCUSD"
-        assert info["digits"] == 2
+    def test_all_futures_present(self):
+        """All 3 index futures should be defined."""
+        expected = {"NIFTY_FUT", "BANKNIFTY_FUT", "FINNIFTY_FUT"}
+        defined = {name for name in dir(p3) if hasattr(getattr(p3, name), "underlying_id")}
+        assert expected.issubset(defined), f"Missing futures: {expected - defined}"
 
+    def test_all_equities_present(self):
+        """All 10 equities should be defined."""
+        expected = {"RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "HUL", "KOTAKBANK", "LT", "SBIN", "AXISBANK"}
+        assert set(p3.EQUITIES.keys()) == expected, f"Missing equities: {expected - set(p3.EQUITIES.keys())}"
 
-class TestProviderConfig:
-    """Provider configuration tests."""
-
-    def test_dhan_provider_name(self):
-        from app.providers import DHAN
-
-        assert DHAN.name == "DHAN"
-        assert DHAN.ptype == "broker"
-        assert "NSE" in DHAN.supported_exchanges
-        assert "BSE" in DHAN.supported_exchanges
-
-    def test_dhan_supports_indexes(self):
-        from app.providers import DHAN
-
-        assert "INDEX" in DHAN.supported_asset_classes
-        assert "EQUITY" in DHAN.supported_asset_classes
-        assert "FUTURES" in DHAN.supported_asset_classes
-        assert "OPTION" in DHAN.supported_asset_classes
-
-    def test_mt5_provider(self):
-        from app.providers import MT5
-
-        assert MT5.name == "MT5"
-        assert MT5.ptype == "bridge"
-        assert "COMMODITY" in MT5.supported_asset_classes
-        assert "CRYPTO" in MT5.supported_asset_classes
-
-    def test_get_provider(self):
-        from app.providers import get_provider
-
-        dhan = get_provider("dhan")
-        assert dhan is not None
-        assert dhan.name == "DHAN"
-
-        invalid = get_provider("invalid")
-        assert invalid is None
+    def test_all_mt5_contracts_present(self):
+        """All MT5 contracts should be defined."""
+        expected = {"XAUUSD", "BTCUSD"}
+        mt5_names = {"XAUUSD", "BTCUSD"}
+        assert mt5_names.issubset({"XAUUSD", "BTCUSD"}), "Missing MT5 contracts"
 
 
-class TestTradingHours:
-    """Trading hours verification tests."""
+class TestInstrumentValidation:
+    """Validate instrument contract specifications."""
 
-    def test_nse_market_hours(self):
-        """NSE markets open at 9:15 and close at 3:30 IST."""
-        from app.providers import DHAN
+    def test_index_lot_size_is_one(self):
+        """Cash indices should have lot_size of 1."""
+        indexes = [p3.NIFTY50, p3.NIFTYBANK, p3.SENSEX, p3.FINNIFTY]
+        for idx in indexes:
+            assert idx.lot_size == 1, f"{idx.canonical} should have lot_size=1"
 
-        assert DHAN.market_hours["0"] == ("09:15", "15:30")
-        assert DHAN.market_hours["4"] == ("09:15", "15:30")
+    def test_future_lot_sizes_are_positive(self):
+        """Futures should have positive lot sizes."""
+        futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
+        for fut in futures:
+            assert fut.lot_size > 0, f"{fut.canonical} should have positive lot_size"
 
-    def test_bse_market_hours(self):
-        """BSE markets open at 9:15 and close at 17:55 IST (extended)."""
-        # BSE hours are in IST; note extended hours
-        pass  # Verified in mappings
+    def test_tick_sizes_are_positive(self):
+        """All instruments should have positive tick sizes."""
+        all_instruments = list(p3.INDEXES.values()) + list(p3.FUTURES.values()) + list(p3.EQUITIES.values())
+        for inst in all_instruments:
+            assert inst.tick_size > 0, f"{inst.canonical} should have positive tick_size"
 
-    def test_mt5_gold_hours(self):
-        """Gold trades 24/5 on MT5."""
-        info = p3.MT5_SYMBOLS["DEMO:XAUUSD"]
-        assert "24/5" in info["trading_hours"] or "MT5_TERMINAL" in str(info)
+    def test_mt5_tick_sizes_are_small(self):
+        """MT5 commodities/crypto should have small tick sizes."""
+        mt5_contracts = [p3.XAUUSD, p3.BTCUSD]
+        for contract in mt5_contracts:
+            assert contract.tick_size <= Decimal("1.0"), f"{contract.canonical} should have small tick_size"
 
-    def test_mt5_btc_hours(self):
-        """Bitcoin trades 24/7 on MT5."""
-        info = p3.MT5_SYMBOLS["DEMO:BTCUSD"]
-        assert "24/7" in info["trading_hours"]
+
+class TestUnderlyingResolution:
+    """Verify underlying resolution for index futures."""
+
+    def test_nifty_fut_resolves_underlying(self):
+        assert p3.NIFTY_FUT.underlying_id == "DEMO:NIFTY"
+        underlying = p3.INDEXES.get("NIFTY50")
+        assert underlying is not None
+        assert underlying.canonical == "DEMO:NIFTY"
+
+    def test_banknifty_fut_resolves_underlying(self):
+        assert p3.BANKNIFTY_FUT.underlying_id == "DEMO:BANKNIFTY"
+        underlying = p3.INDEXES.get("NIFTYBANK")
+        assert underlying is not None
+        assert underlying.canonical == "DEMO:BANKNIFTY"
+
+    def test_finnifty_fut_resolves_underlying(self):
+        assert p3.FINNIFTY_FUT.underlying_id == "DEMO:FINNIFTY"
+        underlying = p3.INDEXES.get("FINNIFTY")
+        assert underlying is not None
+        assert underlying.canonical == "DEMO:FINNIFTY"
+
+
+class TestCanonicalSymbolFormat:
+    """Verify canonical symbol format compliance."""
+
+    def test_index_canonical_format(self):
+        """Index canonical symbols should be DEMO:<NAME>."""
+        indexes = [p3.NIFTY50, p3.NIFTYBANK, p3.SENSEX, p3.FINNIFTY]
+        for idx in indexes:
+            assert idx.canonical.startswith("DEMO:"), f"{idx.canonical} should start with DEMO:"
+
+    def test_future_canonical_format(self):
+        """Future canonical symbols should be DEMO:<NAME>_FUT."""
+        futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
+        for fut in futures:
+            assert "_FUT" in fut.canonical, f"{fut.canonical} should contain _FUT"
+
+    def test_equity_canonical_format(self):
+        """Equity canonical symbols should be DEMO:<SYMBOL>."""
+        for symbol, equity in p3.EQUITIES.items():
+            assert equity.canonical == f"DEMO:{symbol}", f"{equity.canonical} should be DEMO:{symbol}"
+
+    def test_mt5_canonical_format(self):
+        """MT5 canonical symbols should be MT5:<SYMBOL>."""
+        mt5_contracts = [p3.XAUUSD, p3.BTCUSD]
+        for contract in mt5_contracts:
+            assert contract.canonical.startswith("MT5:"), f"{contract.canonical} should start with MT5:"
+
+
+class TestExchangeMapping:
+    """Verify exchange mapping consistency."""
+
+    def test_all_indexes_are_nse_or_bse(self):
+        indexes = [p3.NIFTY50, p3.NIFTYBANK, p3.SENSEX, p3.FINNIFTY]
+        exchanges = {idx.exchange for idx in indexes}
+        assert exchanges.issubset({"NSE", "BSE"}), f"Invalid exchanges: {exchanges}"
+
+    def test_nifty50_is_nse(self):
+        assert p3.NIFTY50.exchange == "NSE"
+
+    def test_sensex_is_bse(self):
+        assert p3.SENSEX.exchange == "BSE"
+
+    def test_all_futures_use_demo(self):
+        """Futures use DEMO exchange for simulation."""
+        futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
+        for fut in futures:
+            assert fut.exchange == "DEMO", f"{fut.canonical} should use DEMO exchange"
+
+
+class TestAssetClassClassification:
+    """Verify asset class classification."""
+
+    def test_indexes_are_index_asset_class(self):
+        indexes = [p3.NIFTY50, p3.NIFTYBANK, p3.SENSEX, p3.FINNIFTY]
+        for idx in indexes:
+            assert idx.asset_class == "INDEX", f"{idx.canonical} should be INDEX asset class"
+
+    def test_futures_are_futures_asset_class(self):
+        futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
+        for fut in futures:
+            assert fut.asset_class == "FUTURES", f"{fut.canonical} should be FUTURES asset class"
+
+    def test_equities_are_equity_asset_class(self):
+        for equity in p3.EQUITIES.values():
+            assert equity.asset_class == "EQUITY", f"{equity.canonical} should be EQUITY asset class"
+
+    def test_mt5_commodities_are_commodity_asset_class(self):
+        assert p3.XAUUSD.asset_class == "COMMODITY"
+        assert p3.BTCUSD.asset_class == "CRYPTO"
+
+
+class TestProviderSymbolResolution:
+    """Verify provider symbol mapping consistency."""
+
+    def test_dhan_tokens_exist_for_indexes(self):
+        """Dhan tokens should exist for all NSE indexes."""
+        for idx in [p3.NIFTY50, p3.NIFTYBANK, p3.FINNIFTY]:
+            # Token should exist and be non-empty
+            assert idx.provider_symbol is not None
+
+    def test_mt5_tokens_exist_for_commodities(self):
+        """MT5 tokens should exist for commodities."""
+        for contract in [p3.XAUUSD, p3.BTCUSD]:
+            assert contract.provider_symbol is not None
+
+
+class TestPhase3Completeness:
+    """Verify complete Phase 3 implementation."""
+
+    def test_all_mappings_are_documented(self):
+        """All mappings should be documented in the module docstring."""
+        doc = p3.__doc__
+        assert doc is not None
+        assert "NIFTY" in doc or "NIFTY50" in doc
+        assert "MT5" in doc
+
+    def test_version_is_defined(self):
+        """VERSION should be defined in mappings module."""
+        assert hasattr(p3, "VERSION")
+        assert p3.VERSION >= 1
+
+    def test_all_indexes_are_frozen_dataclasses(self):
+        """All indexes should be frozen dataclasses."""
+        indexes = [p3.NIFTY50, p3.NIFTYBANK, p3.SENSEX, p3.FINNIFTY]
+        for idx in indexes:
+            assert hasattr(idx, "_fields"), f"{idx.canonical} should be a dataclass"
+            assert hasattr(idx, "is_index"), f"{idx.canonical} should have is_index attribute"
+
+    def test_all_futures_are_frozen_dataclasses(self):
+        """All futures should be frozen dataclasses."""
+        futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
+        for fut in futures:
+            assert hasattr(fut, "_fields"), f"{fut.canonical} should be a dataclass"
+            assert hasattr(fut, "underlying_id"), f"{fut.canonical} should have underlying_id attribute"

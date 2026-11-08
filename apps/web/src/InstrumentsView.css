@@ -1,0 +1,149 @@
+.instruments-view {
+  padding: 1rem;
+}
+
+.instruments-filters {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg-surface);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.filter-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+.filter-row input,
+.filter-row select {
+  padding: 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-canvas);
+  color: var(--fg);
+  min-width: 120px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.filter-actions button {
+  padding: 0.5rem 1rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+th, td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+}
+
+th {
+  font-weight: 600;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+td strong {
+  font-size: 0.875rem;
+}
+
+.asset-class-badge,
+.exchange-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.asset-class-badge {
+  background: var(--bg-muted);
+  color: var(--fg-muted);
+}
+
+.exchange-badge {
+  background: var(--bg-surface);
+  color: var(--fg);
+  border: 1px solid var(--border-default);
+}
+
+.status-ok {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.status-disabled {
+  color: var(--fg-muted);
+}
+
+.instruments-stats {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--bg-surface);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+}
+
+.instruments-stats h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+.stat-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.stat-row:last-child {
+  margin-bottom: 0;
+}
+
+.stat-label {
+  color: var(--fg-muted);
+  font-weight: 500;
+  min-width: 100px;
+}
+
+.stat-value {
+  color: var(--fg);
+}
+
+.stat-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.stat-breakdown span {
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}

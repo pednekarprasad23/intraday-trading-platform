@@ -8,6 +8,7 @@ import { ResearchView } from './ResearchView';
 import { CoverageView } from './CoverageView';
 import { PaperTradingView } from './PaperTradingView';
 import { HistoricalView } from './HistoricalView';
+import { InstrumentsView } from './InstrumentsView';
 
 type View = 'research' | 'market' | 'instruments' | 'system' | 'paper' | 'historical';
 const nav: { key: View; name: string; note: string }[] = [
@@ -51,7 +52,7 @@ export function App() {
   }
   async function logout() {
     setBusy(true); setError('');
-    try { await api('/auth/logout', {method: 'POST'}); setSignedIn(false); setStatus(undefined); setItems([]); setView('research'); }
+    try { await api('/auth/logout', {method: 'POST'}); setSignedIn(false); setStatus(undefined); setView('research'); }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -65,7 +66,7 @@ export function App() {
         {view === 'research' && <ResearchView />}
         {view === 'market' && <><div className="notice-inline">Connector data can be absent or stale. Quotes and terminal snapshots are not execution instructions.</div><CoverageView /><Mt5View /><AngelOneView /></>}
         {view === 'historical' && <HistoricalView />}
-        {view === 'instruments' && <section id="instruments" className="workspace-panel"><div className="section-heading"><div><p className="eyebrow">PROVIDER CATALOG</p><h2>Instrument master</h2><p className="muted">Mappings include illustrative DEMO entries and any verified provider metadata. Listing does not imply data entitlement or execution eligibility.</p></div></div><form className="search-form" onSubmit={e => { e.preventDefault(); void load(search); }}><label>Search instruments<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Symbol or name" /></label><button className="primary-button" disabled={busy}>Search</button></form>{busy ? <p role="status">Loading instruments…</p> : <div className="table-wrap"><table><thead><tr><th>Symbol</th><th>Name</th><th>Asset</th><th>Exchange</th><th>Source</th><th>Execution</th></tr></thead><tbody>{items.map(i => <tr key={i.id}><td><strong>{i.canonical_symbol}</strong></td><td>{i.display_name}</td><td>{i.asset_class}</td><td>{i.exchange}</td><td><span className="result-pill">{i.demo ? 'DEMO' : 'Provider mapping'}</span></td><td>{i.execution_enabled ? 'Enabled in catalog' : 'Disabled'}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">No matching instruments. Try another search or check the catalog import.</p>}</div>}</section>}
+        {view === 'instruments' && <InstrumentsView />}
         {view === 'system' && <section id="status" className="workspace-panel"><div className="section-heading"><div><p className="eyebrow">PLATFORM HEALTH</p><h2>System status</h2></div><button className="quiet-button" disabled={busy} onClick={() => void load(search)}>Refresh</button></div>{status ? <dl className="status-list"><div><dt>Version</dt><dd>{status.version}</dd></div><div><dt>Environment</dt><dd>{status.environment}</dd></div><div><dt>Trading mode</dt><dd>{status.trading_mode}</dd></div><div><dt>Market feed</dt><dd>{status.market_data}</dd></div><div><dt>Live execution</dt><dd><span className="result-pill">{status.live_trading_enabled ? 'Reported enabled — review configuration' : 'Unavailable'}</span></dd></div></dl> : <p role="status">Status unavailable. Refresh to retry.</p>}<div className="notice-inline">Offline research simulations only. Paper orders and live execution are not implemented in this workspace.</div></section>}
         {view === 'paper' && <PaperTradingView />}
         <footer className="workspace-footer">Research-only environment · Historical results and simulated outcomes are not broker fills or investment advice.</footer>
