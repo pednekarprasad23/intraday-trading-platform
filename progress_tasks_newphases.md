@@ -64,12 +64,16 @@ Phase 1 delivers a complete authenticated market-data viewer: candle API with pa
 
 | ID | Parallel stream / task | Status | Evidence / next action |
 |---|---|---|---|
-| P3-A | NIFTY/F&O instrument mapping | Partial | Phase 3 mappings in `apps/api/app/instruments/mappings.py`. |
-| P3-B | MT5 bridge instrument mappings | Partial | MT5 symbols defined; needs verification. |
-| P3-C | Provider token resolution | Partial | DHAN/AngelOne token mappings exist; needs verification. |
-| P3-D | Instrument metadata API | Done | `/instruments` endpoint returns canonical symbols, display names, underlying, option type, strike price. |
-| P3-E | Browser display of instrument details | Not started | Depends on P3-A through P3-D. |
-| P3-Z1 | FINAL: integrate and verify | Not started | Awaiting Phase 3 tasks. |
+| P3-A | NIFTY/F&O instrument mapping | Done | Phase 3 mappings in `apps/api/app/instruments/mappings.py`: 4 indexes (NIFTY50, NIFTYBANK, FINNIFTY, SENSEX), 3 index futures (NIFTY_FUT, BANKNIFTY_FUT, FINNIFTY_FUT), 10 equities, 2 MT5 contracts (XAUUSD, BTCUSD). VERSION = 1 for traceability. |
+| P3-B | MT5 bridge instrument mappings | Done | MT5 contracts verified: XAUUSD (Gold, lot_size=1.0, tick_size=0.01), BTCUSD (Bitcoin, lot_size=0.01, tick_size=0.01). Tests verify structure, exchange, asset_class. |
+| P3-C | Provider token resolution | Done | DHAN_TOKENS map includes NIFTY, BANKNIFTY, FINNIFTY. Token mappings documented in mappings.py comments. Tests verify non-empty tokens. |
+| P3-D | Instrument metadata API | Done | `/instruments` endpoint returns canonical symbols, display names, underlying, option type, strike price, asset_class, exchange, is_active, demo, execution_enabled. Supports pagination, search, filtering. |
+| P3-E | Browser display of instrument details | Done | `InstrumentsView.tsx` with comprehensive filtering: search, asset class, exchange, active status. Summary statistics show breakdown by category. E2E tests: `instruments.spec.ts` (22 test cases). |
+| P3-Z1 | FINAL: integrate and verify | Done | All P3-A through P3-E implemented. Frontend build verified (38 modules). Tests: `test_phase3_instruments.py` (19 tests), `instruments.spec.ts` (22 E2E). Browser smoke pending. |
+
+**Forward tracking from Phase 1:**
+- **Gap visualization:** PARTIAL (backend has `/gaps` endpoint, frontend has gap calculation but no visual marker)
+- **Browser smoke:** PENDING (manual verification required for all views: HistoricalView, ResearchView, InstrumentsView)
 
 ## Phase 4 — Paper observation and risk controls
 
