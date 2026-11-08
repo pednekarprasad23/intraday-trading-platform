@@ -1,0 +1,317 @@
+/* Paper Trading View Styles */
+
+.paper-trading-view {
+  padding: 1rem;
+}
+
+/* Tab Navigation */
+.paper-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 0.5rem;
+}
+
+.paper-tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-default);
+  border-radius: 4px 4px 0 0;
+  background: var(--bg-canvas);
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.paper-tab:hover {
+  background: var(--bg-surface);
+  color: var(--fg);
+}
+
+.paper-tab[aria-selected="true"] {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Account Summary */
+.account-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.summary-value.positive {
+  color: var(--color-success);
+}
+
+.summary-value.negative {
+  color: var(--color-danger);
+}
+
+/* Order Form */
+.order-form {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.order-form h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.order-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+.form-input,
+.form-select {
+  padding: 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-canvas);
+  color: var(--fg);
+  font-size: 0.875rem;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.side-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.side-btn {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-canvas);
+  color: var(--fg);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.side-btn:hover {
+  background: var(--bg-surface);
+}
+
+.side-btn.buy.active {
+  background: rgba(56, 139, 55, 0.2);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.side-btn.sell.active {
+  background: rgba(248, 81, 73, 0.2);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-submit:hover {
+  opacity: 0.9;
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Orders Table */
+.orders-table {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.orders-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.orders-table th {
+  font-weight: 600;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+/* Positions Table */
+.positions-table {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.positions-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.positions-table th,
+.positions-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.positions-table th {
+  font-weight: 600;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+/* Kill Switch */
+.kill-switch-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kill-switch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.kill-switch-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-indicator.armed {
+  background: var(--color-success);
+}
+
+.status-indicator.triggered {
+  background: var(--color-danger);
+}
+
+.kill-switch-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Risk Events */
+.risk-events-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.risk-events-table {
+  overflow-x: auto;
+}
+
+.risk-events-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.risk-events-table th,
+.risk-events-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.risk-events-table th {
+  font-weight: 600;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--fg-muted);
+}
+
+/* Loading State */
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--fg-muted);
+}
+
+/* Error State */
+.error {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid var(--color-danger);
+  border-radius: 4px;
+  padding: 1rem;
+  color: var(--color-danger);
+}
