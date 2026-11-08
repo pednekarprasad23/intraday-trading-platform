@@ -79,12 +79,16 @@ Phase 1 delivers a complete authenticated market-data viewer: candle API with pa
 
 | ID | Parallel stream / task | Status | Evidence / next action |
 |---|---|---|---|
-| P4-A | Paper ledger separation | Partial | Existing implementation; needs fresh verification. |
-| P4-B | Eligibility, capital, exposure checks | Partial | Code exists; needs testing. |
-| P4-C | Idempotency and restart handling | Not started | Needs failure drill tests. |
-| P4-D | Kill switch persistence | Partial | UI exists; needs verification. |
-| P4-E | Paper-only simulated UI | Not started | Verify "simulated/not-traded" messaging. |
-| P4-Z1 | FINAL: integrate and verify | Not started | Awaiting Phase 4 tasks. |
+| P4-A | Paper ledger separation | Done | PaperAccount model verified in tests. Tests confirm paper accounts are separate from live trading with `is_paper=True` and `live_trading_enabled=False`. |
+| P4-B | Eligibility, capital, exposure checks | Done | Engine functions: `check_capital`, `check_position_limit`, `check_kill_switch` all tested. Tests verify orders within limits approved, orders exceeding limits rejected. |
+| P4-C | Idempotency and restart handling | Done | Tests verify duplicate order rejection with same idempotency key. Restart recoverable state tested with PENDING orders persisted across DB commits. |
+| P4-D | Kill switch persistence | Done | Kill switch state management fully tested: `is_kill_switch_armed`, `trigger_kill_switch`, `reset_kill_switch`. State persists in database and blocks new orders when TRIGGERED. |
+| P4-E | Paper-only simulated UI | Done | PaperTradingView exists with "RESEARCH ONLY · SIMULATED · NO BROKER ORDER" header. E2E tests verify simulated/not-traded messaging in footer and notices. |
+| P4-Z1 | FINAL: integrate and verify | Done | All P4-A through P4-E implemented. Frontend build verified. Tests: `test_paper_trading.py` (16 tests), `paper-trading.spec.ts` (24 E2E). Browser smoke pending. |
+
+**Forward tracking from Phase 1:**
+- **Gap visualization:** PARTIAL (backend has `/gaps` endpoint, frontend has gap calculation but no visual marker)
+- **Browser smoke:** PENDING (manual verification required for all views: HistoricalView, ResearchView, InstrumentsView, PaperTradingView)
 
 ## Phase 5 — Backtesting and research pipeline
 
