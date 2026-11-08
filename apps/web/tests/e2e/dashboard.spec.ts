@@ -19,8 +19,8 @@ test.describe('Dashboard V2.2 Command & Control', () => {
   });
 
   test('should display recent activity and open positions sections', async ({ page }) => {
-    await expect(page.locator('text=Open Positions')).toBeVisible();
-    await expect(page.locator('text=Recent Activity & Orders')).toBeVisible();
+    await expect(page.locator('h3', { hasText: 'Open Positions' })).toBeVisible();
+    await expect(page.locator('h3', { hasText: 'Recent Activity & Orders' })).toBeVisible();
   });
 
   test('should be responsive across multiple viewports', async ({ page }) => {

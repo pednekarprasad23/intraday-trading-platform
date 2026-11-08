@@ -13,7 +13,7 @@ test.describe('Home Page V2.1 Operations Cockpit', () => {
   test('should load the home page / dashboard', async ({ page }) => {
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.locator('aside.sidebar').first()).toBeVisible();
-    await expect(page.locator('text=PAPER SIMULATION')).toBeVisible();
+    await expect(page.locator('text=PAPER SIMULATION').first()).toBeVisible();
   });
 
   test('navigation should be functional', async ({ page }) => {
