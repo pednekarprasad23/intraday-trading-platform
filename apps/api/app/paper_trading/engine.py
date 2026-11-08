@@ -94,8 +94,10 @@ def is_kill_switch_armed(db: Session, name: str = "global") -> bool:
         select(KillSwitch).where(KillSwitch.name == name, KillSwitch.state != "armed")
     )
     if ks is None:
-        return True  # Default is armed
-    return ks.state == KillSwitchState.TRIGGERED
+        return True  # Default is armed (allowing orders)
+    # Kill switch is "armed" (blocking) when state is TRIGGERED
+    # It's not armed when reset to RESET_PENDING
+    return ks.state != KillSwitchState.TRIGGERED
 
 
 def trigger_kill_switch(
