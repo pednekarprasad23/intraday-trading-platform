@@ -59,6 +59,10 @@ class Instrument(Base):
     execution_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     metadata_source: Mapped[str] = mapped_column(String(100), default="DEMO_FIXTURE")
     is_demo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # P1-B: Relationship to historical partitions
+    partitions: Mapped[list["HistoricalPartition"]] = relationship(
+        back_populates="instrument"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -159,11 +163,19 @@ class HistoricalPartition(Base):
     )
     provider: Mapped[str] = mapped_column(String(50))
     instrument_id: Mapped[UUID] = mapped_column(ForeignKey("instruments.id"))
+    # P1-B: Instrument relationship for metadata access
+    instrument: Mapped["Instrument"] = relationship(back_populates="partitions")
     timeframe: Mapped[str] = mapped_column(String(2))
     session_date: Mapped[date] = mapped_column(Date)
     relative_path: Mapped[str] = mapped_column(String(500))
     checksum_sha256: Mapped[str] = mapped_column(String(64))
     row_count: Mapped[int] = mapped_column()
+    # P1-B: Denormalized instrument metadata for quick access
+    instrument_canonical_symbol: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    instrument_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    underlying_canonical_symbol: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    option_type: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    strike_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )

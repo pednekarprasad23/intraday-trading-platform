@@ -346,6 +346,15 @@ def import_fixture(
                 relative_path=(relative_dir / final.name).as_posix(),
                 checksum_sha256=checksum,
                 row_count=len(rows),
+                # P1-B: Populate instrument metadata at import time
+                instrument_canonical_symbol=instrument.canonical_symbol,
+                instrument_display_name=instrument.display_name,
+                underlying_canonical_symbol=(
+                    instrument.underlying.canonical_symbol
+                    if instrument.underlying else None
+                ),
+                option_type=instrument.option_type,
+                strike_price=instrument.strike_price,
             )
         )
         db.add_all(HistoricalGap(job_id=job.id, bar_time=gap) for gap in gaps)
