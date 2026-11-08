@@ -154,7 +154,13 @@ class TestInstrumentValidation:
 
     def test_tick_sizes_are_positive(self):
         """All instruments should have positive tick sizes."""
-        all_instruments = list(p3.INDEXES.values()) + list(p3.FUTURES.values()) + list(p3.EQUITIES.values())
+        all_instruments = (
+            list(p3.INDEXES.values())
+            + [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.SENSEX_FUT, p3.FINNIFTY_FUT]
+            + p3.EQUITY_FUTURES
+            + list(p3.EQUITIES.values())
+            + [p3.XAUUSD, p3.BTCUSD]
+        )
         for inst in all_instruments:
             assert inst.tick_size > 0, f"{inst.canonical} should have positive tick_size"
 
