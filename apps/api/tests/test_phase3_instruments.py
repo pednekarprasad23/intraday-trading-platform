@@ -50,7 +50,7 @@ class TestIndexFutures:
         assert Decimal(str(p3.NIFTY_FUT.tick_size)) == Decimal("0.05")
 
     def test_banknifty_futures_lot(self):
-        assert p3.BANKNIFTY_FUT.underlying_id == "DEMO:BANKNIFTY"
+        assert p3.BANKNIFTY_FUT.underlying_id == "DEMO:NIFTYBANK"
         assert Decimal(str(p3.BANKNIFTY_FUT.lot_size)) == Decimal("30")
 
     def test_finnifty_futures_lot(self):
@@ -170,19 +170,19 @@ class TestUnderlyingResolution:
 
     def test_nifty_fut_resolves_underlying(self):
         assert p3.NIFTY_FUT.underlying_id == "DEMO:NIFTY"
-        underlying = p3.INDEXES.get("NIFTY50")
+        underlying = p3.INDEXES.get("DEMO:NIFTY")
         assert underlying is not None
         assert underlying.canonical == "DEMO:NIFTY"
 
     def test_banknifty_fut_resolves_underlying(self):
-        assert p3.BANKNIFTY_FUT.underlying_id == "DEMO:BANKNIFTY"
-        underlying = p3.INDEXES.get("NIFTYBANK")
+        assert p3.BANKNIFTY_FUT.underlying_id == "DEMO:NIFTYBANK"
+        underlying = p3.INDEXES.get(p3.BANKNIFTY_FUT.underlying_id)
         assert underlying is not None
-        assert underlying.canonical == "DEMO:BANKNIFTY"
+        assert underlying.canonical == p3.BANKNIFTY_FUT.underlying_id
 
     def test_finnifty_fut_resolves_underlying(self):
         assert p3.FINNIFTY_FUT.underlying_id == "DEMO:FINNIFTY"
-        underlying = p3.INDEXES.get("FINNIFTY")
+        underlying = p3.INDEXES.get("DEMO:FINNIFTY")
         assert underlying is not None
         assert underlying.canonical == "DEMO:FINNIFTY"
 
@@ -228,11 +228,11 @@ class TestExchangeMapping:
     def test_sensex_is_bse(self):
         assert p3.SENSEX.exchange == "BSE"
 
-    def test_all_futures_use_demo(self):
-        """Futures use DEMO exchange for simulation."""
+    def test_all_futures_use_nse(self):
+        """Futures use NSE exchange (real market)."""
         futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
         for fut in futures:
-            assert fut.exchange == "DEMO", f"{fut.canonical} should use DEMO exchange"
+            assert fut.exchange == "NSE", f"{fut.canonical} should use NSE exchange"
 
 
 class TestAssetClassClassification:
@@ -289,14 +289,18 @@ class TestPhase3Completeness:
 
     def test_all_indexes_are_frozen_dataclasses(self):
         """All indexes should be frozen dataclasses."""
+        from dataclasses import is_dataclass
         indexes = [p3.NIFTY50, p3.NIFTYBANK, p3.SENSEX, p3.FINNIFTY]
         for idx in indexes:
-            assert hasattr(idx, "_fields"), f"{idx.canonical} should be a dataclass"
+            assert is_dataclass(idx), f"{idx.canonical} should be a dataclass"
+            assert idx.__dataclass_params__.frozen is True, f"{idx.canonical} should be frozen"
             assert hasattr(idx, "is_index"), f"{idx.canonical} should have is_index attribute"
 
     def test_all_futures_are_frozen_dataclasses(self):
         """All futures should be frozen dataclasses."""
+        from dataclasses import is_dataclass
         futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
         for fut in futures:
-            assert hasattr(fut, "_fields"), f"{fut.canonical} should be a dataclass"
+            assert is_dataclass(fut), f"{fut.canonical} should be a dataclass"
+            assert fut.__dataclass_params__.frozen is True, f"{fut.canonical} should be frozen"
             assert hasattr(fut, "underlying_id"), f"{fut.canonical} should have underlying_id attribute"

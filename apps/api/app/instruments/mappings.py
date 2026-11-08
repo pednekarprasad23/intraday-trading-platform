@@ -173,7 +173,7 @@ BANKNIFTY_FUT = IndexSpec(
     display_name="BANKNIFTY Futures (DEMO)",
     exchange="NSE",
     segment="FUT",
-    underlying_id="DEMO:BANKNIFTY",
+    underlying_id="DEMO:NIFTYBANK",
     lot_size=Decimal("30"),
     tick_size=Decimal("0.05"),
 )
