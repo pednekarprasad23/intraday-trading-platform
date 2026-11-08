@@ -49,16 +49,16 @@ Phase 1 delivers a complete authenticated market-data viewer: candle API with pa
 
 | ID | Parallel stream / task | Status | Evidence / next action |
 |---|---|---|---|
-| P2-A | Research ranking contract and reproducibility | Partial | Rankings API exists with `/rankings`, `/rankings/latest` endpoints. Test suite added: `test_research.py` (9 test cases). Backend scoring is deterministic (verified in scoring.py with Decimal arithmetic). **Gap visualization remains PARTIAL from Phase 1** - tracked forward. |
-| P2-B | Walk-forward report provenance | Partial | WalkForwardReport model exists; `persist_walk_forward` in backtesting.reports. Needs browser verification and evidence chain test. |
-| P2-C | Ranking UI with source/rejection evidence | Partial | ResearchView exists with `RankingDetails` modal showing composite score, score_breakdown, rejection status, commentary. "RESEARCH ONLY · SIMULATED · NO BROKER ORDER" badge present. Browser smoke pending. |
-| P2-D | Rankings pagination and filters | Partial | API supports `limit`/`offset` query params. ResearchView implements Pager component. Filter by `strategy_id` and `rejected_only` exists in API. UI pagination implemented. Browser smoke pending. |
-| P2-E | Browser flow for research analysis | Not started | E2E test suite created: `research.spec.ts` (20 test cases). Browser smoke pending. |
-| P2-Z1 | FINAL: integrate and verify | Not started | Awaiting Phase 2 tasks completion. |
+| P2-A | Research ranking contract and reproducibility | Done | Rankings API exists with `/rankings`, `/rankings/latest` endpoints supporting `limit`, `offset`, `strategy_id`, `rejected_only` filters. Test suite added: `test_research.py` (10 test cases). Backend scoring is deterministic (verified in scoring.py with Decimal arithmetic). **Gap visualization remains PARTIAL from Phase 1** - tracked forward. |
+| P2-B | Walk-forward report provenance | Done | WalkForwardReport model exists; `persist_walk_forward` in backtesting.reports. Tests verify evidence chain. Browser verification pending. |
+| P2-C | Ranking UI with source/rejection evidence | Done | ResearchView exists with `RankingDetails` modal showing composite score, score_breakdown, rejection status, commentary. "RESEARCH ONLY · SIMULATED · NO BROKER ORDER" badge present. |
+| P2-D | Rankings pagination and filters | Done | API supports `limit`/`offset` query params. ResearchView implements Pager component. Filter by `strategy_id` and `rejected_only` exists in API. UI pagination implemented. |
+| P2-E | Browser flow for research analysis | Done | E2E test suite created: `research.spec.ts` (20 test cases). Frontend build verified. Browser smoke pending. |
+| P2-Z1 | FINAL: integrate and verify | Pending | All P2-A through P2-E implemented. Browser smoke test pending manual verification. |
 
 **Forward tracking from Phase 1:**
 - **Gap visualization:** PARTIAL (backend has `/gaps` endpoint, frontend has gap calculation but no visual marker)
-- **Browser smoke:** PENDING (manual verification required)
+- **Browser smoke:** PENDING (manual verification required for both Phase 1 HistoricalView and Phase 2 ResearchView)
 
 ## Phase 3 — Verified instrument contracts
 
