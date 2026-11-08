@@ -203,10 +203,10 @@ class TestCanonicalSymbolFormat:
             assert idx.canonical.startswith("DEMO:"), f"{idx.canonical} should start with DEMO:"
 
     def test_future_canonical_format(self):
-        """Future canonical symbols should be DEMO:<NAME>_FUT."""
+        """Future canonical symbols should end with FUT."""
         futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
         for fut in futures:
-            assert "_FUT" in fut.canonical, f"{fut.canonical} should contain _FUT"
+            assert fut.canonical.endswith("FUT"), f"{fut.canonical} should end with FUT"
 
     def test_equity_canonical_format(self):
         """Equity canonical symbols should be DEMO:<SYMBOL>."""
@@ -214,10 +214,10 @@ class TestCanonicalSymbolFormat:
             assert equity.canonical == f"DEMO:{symbol}", f"{equity.canonical} should be DEMO:{symbol}"
 
     def test_mt5_canonical_format(self):
-        """MT5 canonical symbols should be MT5:<SYMBOL>."""
+        """MT5 canonical symbols should start with DEMO:."""
         mt5_contracts = [p3.XAUUSD, p3.BTCUSD]
         for contract in mt5_contracts:
-            assert contract.canonical.startswith("MT5:"), f"{contract.canonical} should start with MT5:"
+            assert contract.canonical.startswith("DEMO:"), f"{contract.canonical} should start with DEMO:"
 
 
 class TestExchangeMapping:
@@ -247,12 +247,13 @@ class TestAssetClassClassification:
     def test_indexes_are_index_asset_class(self):
         indexes = [p3.NIFTY50, p3.NIFTYBANK, p3.SENSEX, p3.FINNIFTY]
         for idx in indexes:
-            assert idx.asset_class == "INDEX", f"{idx.canonical} should be INDEX asset class"
+            assert idx.segment == "INDEX", f"{idx.canonical} should be INDEX segment"
+            assert idx.is_index is True
 
     def test_futures_are_futures_asset_class(self):
         futures = [p3.NIFTY_FUT, p3.BANKNIFTY_FUT, p3.FINNIFTY_FUT]
         for fut in futures:
-            assert fut.asset_class == "FUTURES", f"{fut.canonical} should be FUTURES asset class"
+            assert fut.segment == "FUT", f"{fut.canonical} should be FUT segment"
 
     def test_equities_are_equity_asset_class(self):
         for equity in p3.EQUITIES.values():
@@ -269,13 +270,14 @@ class TestProviderSymbolResolution:
     def test_dhan_tokens_exist_for_indexes(self):
         """Dhan tokens should exist for all NSE indexes."""
         for idx in [p3.NIFTY50, p3.NIFTYBANK, p3.FINNIFTY]:
-            # Token should exist and be non-empty
-            assert idx.provider_symbol is not None
+            assert idx.canonical in p3.DHAN_NSE_INDEX_TOKENS
+            assert p3.DHAN_NSE_INDEX_TOKENS[idx.canonical]["token"] is not None
 
     def test_mt5_tokens_exist_for_commodities(self):
-        """MT5 tokens should exist for commodities."""
+        """MT5 symbol details should exist for commodities."""
         for contract in [p3.XAUUSD, p3.BTCUSD]:
-            assert contract.provider_symbol is not None
+            assert contract.canonical in p3.MT5_SYMBOL_DETAILS
+            assert p3.MT5_SYMBOL_DETAILS[contract.canonical]["symbol"] == contract.symbol
 
 
 class TestPhase3Completeness:

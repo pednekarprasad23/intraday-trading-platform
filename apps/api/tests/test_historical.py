@@ -16,12 +16,16 @@ from app.models import (
     HistoricalGap,
     HistoricalImportJob,
     HistoricalPartition,
+    BacktestReport,
+    WalkForwardReport,
 )
 
 
 def setup_db(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'historical.db'}")
     Base.metadata.create_all(engine)
+    BacktestReport.metadata.create_all(engine)
+    WalkForwardReport.metadata.create_all(engine)
     with Session(engine) as db:
         # Create underlying instrument (required by read_sessions)
         underlying = Instrument(

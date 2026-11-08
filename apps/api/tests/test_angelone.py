@@ -32,12 +32,18 @@ def test_read_only_ltp_normalization_rejects_unknown_and_invalid():
     reason="Development mode: AUTH_DISABLED=true, production auth behavior tested separately",
 )
 def test_angel_snapshot_is_protected_and_fails_closed(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTH_DISABLED", "false")
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
     settings = get_settings()
     path = tmp_path / "angel.json"
     monkeypatch.setattr(settings, "angelone_snapshot_path", str(path))
     monkeypatch.setattr(settings, "angelone_enabled", False)
-    with TestClient(app) as client:
-        assert client.get("/api/v1/angelone/snapshot").status_code == 401
+    try:
+        with TestClient(app) as client:
+            assert client.get("/api/v1/angelone/snapshot").status_code == 401
+    finally:
+        get_settings.cache_clear()
     now = datetime.now(timezone.utc).isoformat()
     path.write_text(
         json.dumps(

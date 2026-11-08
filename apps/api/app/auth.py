@@ -67,8 +67,7 @@ def require_user(db: Session = Depends(get_db)) -> User:
         return MockUser()  # type: ignore
 
     # Production auth logic
-    token = None  # Will not reach here in dev mode
-    user = None
+    raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 def same_origin(request: Request) -> None:

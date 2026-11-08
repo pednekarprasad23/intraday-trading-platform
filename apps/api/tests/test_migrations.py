@@ -1,3 +1,4 @@
+from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
@@ -9,7 +10,9 @@ def test_migration_roundtrip(tmp_path, monkeypatch):
     url = f"sqlite:///{tmp_path / 'migration.db'}"
     monkeypatch.setenv("DATABASE_URL", url)
     get_settings.cache_clear()
-    config = Config("alembic.ini")
+    ini_path = Path(__file__).parent.parent / "alembic.ini"
+    config = Config(str(ini_path))
+    config.set_main_option("script_location", str(Path(__file__).parent.parent / "alembic"))
     try:
         command.upgrade(config, "head")
         assert "instruments" in inspect(create_engine(url)).get_table_names()
