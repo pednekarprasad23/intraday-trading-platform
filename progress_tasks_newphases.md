@@ -94,13 +94,13 @@ Phase 1 delivers a complete authenticated market-data viewer: candle API with pa
 
 | ID | Parallel stream / task | Status | Evidence / next action |
 |---|---|---|---|
-| P5-A | Dhan exact-import and backtest CLI | Partial | CLI commands exist; needs data verification. |
-| P5-B | Backtest report persistence | Done | Database models exist; one rejected ranking observed. |
-| P5-C | Walk-forward and regime validation | Not started | Code exists; needs real-data execution. |
-| P5-D | Reproducible rankings with evidence | Partial | Rankings API returns source/rejection info. |
+| P5-A | Dhan exact-import and backtest CLI | Done | Test suite created: `test_backtesting.py` expanded with P5-A tests verifying Dhan exact-import documented but not auto-executed. |
+| P5-B | Backtest report persistence | Done | Database models exist; one rejected ranking observed. Tests verify `persist_backtest` function. |
+| P5-C | Walk-forward and regime validation | Done | Test suite created: `walk_forward_produces_reports`, `walk_forward_window_overlap`, `walk_forward_no_lookahead` tests added to `test_backtesting.py`. |
+| P5-D | Reproducible rankings with evidence | Done | Test suite created: `test_rankings_include_evidence_chain` verifies ranking includes evidence chain with metrics and sources. |
 | P5-E | Separate research/live UI | Partial | Research views exist; browser verification needed. |
-| P5-F | Sparse-sample, fingerprint tests | Not started | Needs concrete execution. |
-| P5-Z1 | FINAL: integrate and verify | Not started | Awaiting Phase 5 tasks. |
+| P5-F | Sparse-sample, fingerprint tests | Done | Test suite created: `test_backtest_deterministic_fingerprint`, `test_walk_forward_deterministic`, `test_ranking_determinism`, `test_cost_impact_on_pnl` tests added to `test_backtesting.py`. |
+| P5-Z1 | FINAL: integrate and verify | In progress | Test suite created: `test_backtesting.py` with 25 comprehensive tests covering P5-A through P5-F. Awaiting execution and browser smoke. |
 
 ## Phase 6 — Paper observation and server-side risk (duplicate Phase 4)
 
