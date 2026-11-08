@@ -1,14 +1,14 @@
 """Add instrument metadata to historical partitions.
 
 Revision ID: 20261108090000
-Revises: 20261108070000_provider_client_id
+Revises: 20261108070000_client_id
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 revision = "20261108090000"
-down_revision = "20261108070000_provider_client_id"
+down_revision = "20261108070000_client_id"
 branch_labels = None
 depends_on = None
 

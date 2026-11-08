@@ -235,7 +235,7 @@ class TestCapitalChecks:
             name="Test Account",
             currency="INR",
             initial_capital=Decimal("1000000"),
-            available_capital=Decimal("1000000),
+            available_capital=Decimal("1000000"),
             max_position_value=Decimal("500000"),
         )
         db.add(account)
@@ -383,7 +383,7 @@ class TestOrderLifecycle:
             name="Test Account",
             currency="INR",
             initial_capital=Decimal("1000000"),
-            available_capital=Decimal("1000000),
+            available_capital=Decimal("1000000"),
         )
         db.add(account)
         db.commit()
@@ -409,7 +409,7 @@ class TestOrderLifecycle:
             name="Test Account",
             currency="INR",
             initial_capital=Decimal("1000000"),
-            available_capital=Decimal("1000000),
+            available_capital=Decimal("1000000"),
         )
         db.add(account)
         db.commit()
@@ -438,7 +438,7 @@ class TestOrderLifecycle:
             name="Test Account",
             currency="INR",
             initial_capital=Decimal("1000000"),
-            available_capital=Decimal("1000000),
+            available_capital=Decimal("1000000"),
         )
         db.add(account)
         db.commit()
@@ -471,7 +471,7 @@ class TestPositionAggregation:
             name="Test Account",
             currency="INR",
             initial_capital=Decimal("1000000"),
-            available_capital=Decimal("1000000),
+            available_capital=Decimal("1000000"),
         )
         db.add(account)
         db.commit()
@@ -544,7 +544,7 @@ def setup_paper_data(db: Session):
         name="Test Account",
         currency="INR",
         initial_capital=Decimal("1000000"),
-        available_capital=Decimal("1000000),
+        available_capital=Decimal("1000000"),
         max_position_value=Decimal("500000"),
         max_daily_loss=Decimal("100000"),
         max_total_exposure=Decimal("1000000"),
