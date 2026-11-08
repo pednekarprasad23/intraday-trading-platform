@@ -40,6 +40,17 @@ NEVER force-push.
 
 ## Orchestration Guidelines
 
+### Standard Engineering Lifecycle (Compound Engineering Hybrid)
+Substantive engineering tasks must follow the standardized lifecycle:
+ANALYZE → PLAN → EXECUTE → VERIFY → REVIEW → LEARN → CHECKPOINT
+
+1. **Analyze (Graphify-Lite Pre-Check):** Before modifying shared/sensitive modules, run static analysis via `python tools/code_graph.py` (`depends-on`, `callers`, `symbol`, `hotspots`).
+2. **Plan:** Determine task decomposition, specialist ownership (no two agents edit the same file concurrently), and shared contracts.
+3. **Execute:** Specialist agents make the smallest correct change preserving behavior, security, and trading safety.
+4. **Verify:** Run focused tests first, then full backend regression suite (golden baseline: 253 passed, 0 failed, 0 errors).
+5. **Review:** Reviewer/QA checks correctness, regression risk, security, and trading safety.
+6. **Learn (Knowledge Capture Threshold):** Capture persistent lessons ONLY when non-obvious, reusable, verified, and structural. Distinguish Memory (facts/constraints) from Skills (reputable procedures in `.claude/skills/`). Verify against current code to prevent staleness.
+
 ### Orchestrator Responsibilities
 - Architecture and task decomposition
 - Dependency ordering and ownership boundaries
