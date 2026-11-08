@@ -117,7 +117,34 @@ Phase 1 delivers a complete authenticated market-data viewer: candle API with pa
 
 | Skill | Purpose | Location |
 |-------|---------|----------|
-| `historical-api-test` | Run historical candle API regression tests | `.claude/skills/historical-api-test/SKILL.md` |
+| `historical-api-test` | Run historical candle API regression tests | `.claude/skills/historical-api-test/SKILL.md`
+
+## Documentation
+
+| Document | Purpose | Location |
+|----------|---------|----------|
+| PHASE1_CLOSURE_REPORT.md | Phase 1 closure | Root |
+| PHASE4_CLOSURE_REPORT.md | Phase 4 closure | Root |
+| PHASE5_CLOSURE_REPORT.md | Phase 5 closure | Root |
+| PHASE6_CLOSURE_REPORT.md | Phase 6 closure | Root |
+| PHASE7_CLOSURE_REPORT.md | Phase 7 closure | Root |
+| docs/RELEASE_READINESS.md | Release readiness | docs |
+| docs/BROWSER_SMOKE_GATE.md | Browser smoke release gate | docs |
+| docs/BROWSER_SMOKE_TESTS.md | Browser smoke test procedure | docs |
+| docs/ARCHITECTURE.md | System architecture | docs |
+| docs/ROLLBACK.md | Rollback procedures | docs |
+
+---
+
+**Last updated:** 2026-11-08  
+**Latest commit:** [TBD]  
+**Branch:** `main`  
+**Remote:** `origin/main`
+
+**Policy Locations:**
+- Git policy: `CLAUDE.md`
+- Orchestration rules: `CLAUDE.md` and `docs/ARCHITECTURE.md`
+- Context discipline: `CLAUDE.md` |
 
 ## Documentation
 
