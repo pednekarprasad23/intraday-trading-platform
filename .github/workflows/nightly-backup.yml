@@ -1,0 +1,123 @@
+name: Nightly Backup
+
+on:
+  schedule:
+    # Runs daily at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_REPOSITORY }}/intraday-api
+          files: |
+            apps/api/Dockerfile
+            apps/web/Dockerfile
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          push: true
+          tags: ${{ secrets.DOCKERHUB_REPOSITORY }}/intraday-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start services
+        run: |
+          cd deployment/compose
+          docker compose -f compose.yml up -d
+          sleep 30  # Wait for services to start
+
+      - name: Wait for API to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/api/v1/health/live > /dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            echo "Waiting for API... ($i)"
+            sleep 10
+          done
+          echo "API failed to start"
+          exit 1
+
+      - name: Create backup
+        run: |
+          chmod +x ../../../scripts/backup.sh
+          ../../../scripts/backup.sh
+
+      - name: Upload backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-backup-${{ github.run_number }}
+          path: |
+            deployment/backups/*.pgdump.gz
+            deployment/backups/*.redis.rdb
+            deployment/backups/*.manifest.json
+          retention-days: 30
+
+      - name: Notify failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "❌ Backup failed for intraday-trading-platform",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*❌ Backup Failed*\nPlatform: intraday-trading-platform\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\nTime: ${{ github.event.schedule }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify success
+        if: success()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "✅ Backup completed successfully",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*✅ Backup Successful*\nPlatform: intraday-trading-platform\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd deployment/compose
+          docker compose down -v || true

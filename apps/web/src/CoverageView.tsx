@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { market, type CoverageFilters, type MarketCoverage } from './api';
+import { historical, market, type CoverageFilters, type HistoricalCandle, type HistoricalPartition, type MarketCoverage } from './api';
 
 const pageSize = 50;
 const dateTime = (value: string | null) => value ? new Date(value).toLocaleString(undefined, { timeZoneName: 'short' }) : 'Not recorded';
@@ -12,6 +12,11 @@ export function CoverageView() {
   const [data, setData] = useState<MarketCoverage>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [partitions, setPartitions] = useState<HistoricalPartition[]>([]);
+  const [selectedPartition, setSelectedPartition] = useState<HistoricalPartition>();
+  const [candles, setCandles] = useState<HistoricalCandle[]>([]);
+  const [candleError, setCandleError] = useState('');
+  const [candlesLoading, setCandlesLoading] = useState(false);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -20,6 +25,17 @@ export function CoverageView() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [offset, filters, retry]);
+  useEffect(() => {
+    let active = true;
+    historical.partitions().then(result => { if (active) setPartitions(result.items); }).catch(() => { if (active) setPartitions([]); });
+    return () => { active = false; };
+  }, [retry]);
+  async function showCandles(partition: HistoricalPartition) {
+    setSelectedPartition(partition); setCandles([]); setCandleError(''); setCandlesLoading(true);
+    try { const result = await historical.candles(partition.id); setCandles(result.items); }
+    catch (cause) { setCandleError((cause as Error).message); }
+    finally { setCandlesLoading(false); }
+  }
   function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setOffset(0); setFilters({ ...draft });
   }
@@ -40,5 +56,8 @@ export function CoverageView() {
     {error && <p role="alert" className="error">Coverage unavailable: {error} <button className="quiet-button" onClick={() => setRetry(n => n + 1)}>Retry</button></p>}
     {!loading && !error && data?.total === 0 && <p className="empty-state">No provider mappings match these filters. Clear filters to see the stored catalog; this does not establish market-wide coverage.</p>}
     {!loading && !error && data && data.total > 0 && <><div className="table-wrap"><table><thead><tr><th>Instrument</th><th>Source</th><th>Mapping verified</th><th>Historical coverage gap</th><th>Latest stored session</th><th>Live quote</th></tr></thead><tbody>{data.items.map(item => <tr key={`${item.instrument_id}:${item.provider}:${item.provider_instrument_key}`}><td><strong>{item.display_name}</strong><br /><code>{item.canonical_symbol}</code> {item.demo && <span className="result-pill">DEMO</span>}</td><td>{item.provider} · {item.provider_exchange ?? item.exchange}</td><td>{dateTime(item.mapping_verified_at)}</td><td>{item.historical_partition_count ? `${item.historical_partition_count} stored partition(s); full date range not verified` : 'No historical partitions stored'}</td><td>{item.latest_historical_session ?? 'None stored'}</td><td>{item.live_quote_available ? 'Available' : 'Unavailable'}</td></tr>)}</tbody></table></div><div className="pager"><button disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>Previous</button><span>{offset + 1}–{Math.min(offset + data.items.length, data.total)} of {data.total} matching mappings</span><button disabled={offset + pageSize >= data.total || loading} onClick={() => setOffset(offset + pageSize)}>Next</button></div></>}
+    <div className="section-heading"><div><h3>Verified historical candles</h3><p className="muted">Stored OHLCV loaded through checksum and schema verification.</p></div></div>
+    {partitions.length === 0 ? <p className="empty-state">No readable historical partitions are cataloged.</p> : <div className="table-wrap"><table><thead><tr><th>Session</th><th>Provider</th><th>Timeframe</th><th>Bars</th><th>Checksum</th><th>Data</th></tr></thead><tbody>{partitions.map(partition => <tr key={partition.id}><td>{partition.session_date}</td><td>{partition.provider}</td><td>{partition.timeframe}</td><td>{partition.row_count}</td><td><code>{partition.checksum_sha256.slice(0, 12)}…</code></td><td><button className="quiet-button" onClick={() => void showCandles(partition)}>View candles</button></td></tr>)}</tbody></table></div>}
+    {selectedPartition && <div><h4>{selectedPartition.session_date} · {selectedPartition.timeframe} candles</h4>{candlesLoading && <p role="status">Verifying and loading candles…</p>}{candleError && <p role="alert" className="error">Historical candles unavailable: {candleError}</p>}{!candlesLoading && !candleError && candles.length > 0 && <div className="table-wrap"><table><thead><tr><th>Time</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Volume</th></tr></thead><tbody>{candles.map(candle => <tr key={candle.bar_time}><td>{dateTime(candle.bar_time)}</td><td>{candle.open}</td><td>{candle.high}</td><td>{candle.low}</td><td>{candle.close}</td><td>{candle.volume}</td></tr>)}</tbody></table></div>}</div>}
   </section>;
 }

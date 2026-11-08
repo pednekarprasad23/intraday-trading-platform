@@ -1,5 +1,6 @@
-"""Authenticated, bounded catalog-only historical status (no filesystem paths)."""
+"""Authenticated, bounded historical status and verified candle reads."""
 
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,7 +8,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import require_user
+from app.config import get_settings
 from app.database import get_db
+from app.historical.reader import read_sessions
 from app.models import HistoricalGap, HistoricalImportJob, HistoricalPartition
 
 router = APIRouter(prefix="/api/v1/historical", dependencies=[Depends(require_user)])
@@ -82,6 +85,52 @@ def partitions(
                 row_count=row.row_count,
             )
             for row in rows
+        ],
+    }
+
+
+@router.get("/partitions/{partition_id}/candles")
+def partition_candles(
+    partition_id: UUID,
+    limit: int = Query(500, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    partition = db.get(HistoricalPartition, partition_id)
+    if partition is None:
+        raise HTTPException(status_code=404, detail="Partition not found")
+    try:
+        session = read_sessions(
+            db,
+            Path(get_settings().historical_data_root),
+            provider=partition.provider,
+            instrument_id=partition.instrument_id,
+            timeframe=partition.timeframe,
+            dates=(partition.session_date,),
+        )[0]
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    bars = session.bars[offset : offset + limit]
+    return {
+        "partition_id": str(partition.id),
+        "provider": partition.provider,
+        "instrument_id": str(partition.instrument_id),
+        "timeframe": partition.timeframe,
+        "session_date": partition.session_date,
+        "checksum_sha256": partition.checksum_sha256,
+        "total": len(session.bars),
+        "limit": limit,
+        "offset": offset,
+        "items": [
+            {
+                "bar_time": bar.bar_time,
+                "open": str(bar.open),
+                "high": str(bar.high),
+                "low": str(bar.low),
+                "close": str(bar.close),
+                "volume": str(bar.volume),
+            }
+            for bar in bars
         ],
     }
 

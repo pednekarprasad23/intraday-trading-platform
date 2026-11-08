@@ -57,10 +57,30 @@ from app.historical.importer import import_fixture
 from app.historical.reader import read_sessions
 from app.models import HistoricalPartition, Instrument, BacktestReport, WalkForwardReport
 from app.strategies.contracts import StrategyConfig
-from tests.test_historical import setup_db
+from tests.test_historical import setup_db, _long_path
 
 STRATEGY = StrategyConfig("option-premium-ema-rsi", 1, 2, 3, 2, D(40), D(100))
 COST = SimulationConfig(D(1), D(1), D("0.01"), D("0.1"), D("0.2"), D("0.1"), D("0.2"))
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _write_session_csv(path, day, num_bars, base_price=100, drift=0.01):
+    """Write a valid CSV fixture for one session.
+
+    Timestamps are in IST (+05:30).  OHLC satisfies high >= max(open,close)
+    and low  <= min(open,close) so the importer's validation passes.
+    """
+    start = datetime.combine(day, time(9, 15), IST)
+    lines = ["bar_time,open,high,low,close,volume\n"]
+    for i in range(num_bars):
+        ts = start + timedelta(minutes=i)
+        close = D(str(base_price + i * drift))
+        high = close + D("0.1")
+        low = close - D("0.1")
+        open_ = close  # open == close for simplicity; high/low bracket it
+        lines.append(f"{ts.isoformat()},{open_},{high},{low},{close},1\n")
+    path.write_text("".join(lines), encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -73,35 +93,17 @@ def test_sessions(tmp_path):
     """Create test sessions and return engine, root, instrument_id, dates."""
     engine, instrument_id = setup_db(tmp_path)
     root = tmp_path / "parquet"
+    # Ensure root directory exists with proper handling for Windows long paths
+    if not root.exists():
+        root.mkdir(parents=True, exist_ok=True)
 
-    # Create underlying for the option
-    with Session(engine) as db:
-        underlying = Instrument(
-            canonical_symbol="DEMO:UNDERLYING",
-            display_name="Index",
-            asset_class="INDEX",
-            exchange="DEMO",
-            segment="DEMO",
-        )
-        db.add(underlying)
-        db.flush()
-        db.get(Instrument, instrument_id).underlying_id = underlying.id
-
-    dates = [date(2026, 11, 2 + i) for i in range(5)]  # 5 days
+    dates = [date(2026, 11, 2 + i) for i in range(5)]
 
     with Session(engine) as db:
         for idx, day in enumerate(dates):
-            start = datetime.combine(day, time(3, 45), timezone.utc)
-            base_price = 100 + idx * 0.5
             fixture = tmp_path / f"session-{day}.csv"
-            fixture.write_text(
-                "bar_time,open,high,low,close,volume\n"
-                + "".join(
-                    f"{(start + timedelta(minutes=i)).isoformat()},{base_price + i*0.02},{base_price + i*0.02 + 0.1},{base_price + i*0.02 - 0.1},{base_price + i*0.02},1\n"
-                    for i in range(30)
-                ),
-                encoding="utf-8",
-            )
+            _write_session_csv(fixture, day, num_bars=30,
+                               base_price=100 + idx * 0.5, drift=0.02)
             import_fixture(
                 db,
                 fixture,
@@ -111,14 +113,21 @@ def test_sessions(tmp_path):
                 timeframe="1m",
                 session_date=day,
                 session_start=time(9, 15),
-                session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=30)).time(),
+                session_end=time(9, 45),
                 source_sha256=sha256(fixture.read_bytes()).hexdigest(),
             )
         db.commit()
 
     def _read_sessions(dates_to_read):
         with Session(engine) as db:
-            return read_sessions(db, root, "DEMO", instrument_id, "1m", tuple(dates_to_read))
+            return read_sessions(
+                db,
+                root,
+                provider="DEMO",
+                instrument_id=instrument_id,
+                timeframe="1m",
+                dates=tuple(dates_to_read),
+            )
 
     return engine, root, instrument_id, dates, _read_sessions
 
@@ -128,34 +137,15 @@ def sessions_4_days(tmp_path):
     """Create 4 test sessions."""
     engine, instrument_id = setup_db(tmp_path)
     root = tmp_path / "parquet"
-
-    with Session(engine) as db:
-        underlying = Instrument(
-            canonical_symbol="DEMO:UNDERLYING",
-            display_name="Index",
-            asset_class="INDEX",
-            exchange="DEMO",
-            segment="DEMO",
-        )
-        db.add(underlying)
-        db.flush()
-        db.get(Instrument, instrument_id).underlying_id = underlying.id
+    root.mkdir(parents=True, exist_ok=True)
 
     dates = [date(2026, 11, 2 + i) for i in range(4)]
 
     with Session(engine) as db:
         for idx, day in enumerate(dates):
-            start = datetime.combine(day, time(3, 45), timezone.utc)
-            base_price = 100 + idx * 0.5
             fixture = tmp_path / f"session-{day}.csv"
-            fixture.write_text(
-                "bar_time,open,high,low,close,volume\n"
-                + "".join(
-                    f"{(start + timedelta(minutes=i)).isoformat()},{base_price + i*0.02},{base_price + i*0.02 + 0.1},{base_price + i*0.02 - 0.1},{base_price + i*0.02},1\n"
-                    for i in range(20)
-                ),
-                encoding="utf-8",
-            )
+            _write_session_csv(fixture, day, num_bars=20,
+                               base_price=100 + idx * 0.5, drift=0.02)
             import_fixture(
                 db,
                 fixture,
@@ -165,14 +155,21 @@ def sessions_4_days(tmp_path):
                 timeframe="1m",
                 session_date=day,
                 session_start=time(9, 15),
-                session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=20)).time(),
+                session_end=time(9, 35),
                 source_sha256=sha256(fixture.read_bytes()).hexdigest(),
             )
         db.commit()
 
     def _read_sessions(dates_to_read):
         with Session(engine) as db:
-            return read_sessions(db, root, "DEMO", instrument_id, "1m", tuple(dates_to_read))
+            return read_sessions(
+                db,
+                root,
+                provider="DEMO",
+                instrument_id=instrument_id,
+                timeframe="1m",
+                dates=tuple(dates_to_read),
+            )
 
     return engine, root, instrument_id, dates, _read_sessions
 
@@ -182,34 +179,15 @@ def sessions_3_days(tmp_path):
     """Create 3 test sessions."""
     engine, instrument_id = setup_db(tmp_path)
     root = tmp_path / "parquet"
-
-    with Session(engine) as db:
-        underlying = Instrument(
-            canonical_symbol="DEMO:UNDERLYING",
-            display_name="Index",
-            asset_class="INDEX",
-            exchange="DEMO",
-            segment="DEMO",
-        )
-        db.add(underlying)
-        db.flush()
-        db.get(Instrument, instrument_id).underlying_id = underlying.id
+    root.mkdir(parents=True, exist_ok=True)
 
     dates = [date(2026, 11, 2 + i) for i in range(3)]
 
     with Session(engine) as db:
         for idx, day in enumerate(dates):
-            start = datetime.combine(day, time(3, 45), timezone.utc)
-            base_price = 100 + idx * 0.5
             fixture = tmp_path / f"session-{day}.csv"
-            fixture.write_text(
-                "bar_time,open,high,low,close,volume\n"
-                + "".join(
-                    f"{(start + timedelta(minutes=i)).isoformat()},{base_price + i*0.02},{base_price + i*0.02 + 0.1},{base_price + i*0.02 - 0.1},{base_price + i*0.02},1\n"
-                    for i in range(20)
-                ),
-                encoding="utf-8",
-            )
+            _write_session_csv(fixture, day, num_bars=20,
+                               base_price=100 + idx * 0.5, drift=0.02)
             import_fixture(
                 db,
                 fixture,
@@ -219,14 +197,21 @@ def sessions_3_days(tmp_path):
                 timeframe="1m",
                 session_date=day,
                 session_start=time(9, 15),
-                session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=20)).time(),
+                session_end=time(9, 35),
                 source_sha256=sha256(fixture.read_bytes()).hexdigest(),
             )
         db.commit()
 
     def _read_sessions(dates_to_read):
         with Session(engine) as db:
-            return read_sessions(db, root, "DEMO", instrument_id, "1m", tuple(dates_to_read))
+            return read_sessions(
+                db,
+                root,
+                provider="DEMO",
+                instrument_id=instrument_id,
+                timeframe="1m",
+                dates=tuple(dates_to_read),
+            )
 
     return engine, root, instrument_id, dates, _read_sessions
 
@@ -236,34 +221,15 @@ def sessions_2_days(tmp_path):
     """Create 2 test sessions."""
     engine, instrument_id = setup_db(tmp_path)
     root = tmp_path / "parquet"
-
-    with Session(engine) as db:
-        underlying = Instrument(
-            canonical_symbol="DEMO:UNDERLYING",
-            display_name="Index",
-            asset_class="INDEX",
-            exchange="DEMO",
-            segment="DEMO",
-        )
-        db.add(underlying)
-        db.flush()
-        db.get(Instrument, instrument_id).underlying_id = underlying.id
+    root.mkdir(parents=True, exist_ok=True)
 
     dates = [date(2026, 11, 2 + i) for i in range(2)]
 
     with Session(engine) as db:
         for idx, day in enumerate(dates):
-            start = datetime.combine(day, time(3, 45), timezone.utc)
-            base_price = 100 + idx * 0.5
             fixture = tmp_path / f"session-{day}.csv"
-            fixture.write_text(
-                "bar_time,open,high,low,close,volume\n"
-                + "".join(
-                    f"{(start + timedelta(minutes=i)).isoformat()},{base_price + i*0.02},{base_price + i*0.02 + 0.1},{base_price + i*0.02 - 0.1},{base_price + i*0.02},1\n"
-                    for i in range(50)
-                ),
-                encoding="utf-8",
-            )
+            _write_session_csv(fixture, day, num_bars=50,
+                               base_price=100 + idx * 0.5, drift=0.02)
             import_fixture(
                 db,
                 fixture,
@@ -273,14 +239,21 @@ def sessions_2_days(tmp_path):
                 timeframe="1m",
                 session_date=day,
                 session_start=time(9, 15),
-                session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=50)).time(),
+                session_end=time(10, 5),
                 source_sha256=sha256(fixture.read_bytes()).hexdigest(),
             )
         db.commit()
 
     def _read_sessions(dates_to_read):
         with Session(engine) as db:
-            return read_sessions(db, root, "DEMO", instrument_id, "1m", tuple(dates_to_read))
+            return read_sessions(
+                db,
+                root,
+                provider="DEMO",
+                instrument_id=instrument_id,
+                timeframe="1m",
+                dates=tuple(dates_to_read),
+            )
 
     return engine, root, instrument_id, dates, _read_sessions
 
@@ -290,33 +263,13 @@ def session_1_day(tmp_path):
     """Create 1 test session with many bars."""
     engine, instrument_id = setup_db(tmp_path)
     root = tmp_path / "parquet"
-
-    with Session(engine) as db:
-        underlying = Instrument(
-            canonical_symbol="DEMO:UNDERLYING",
-            display_name="Index",
-            asset_class="INDEX",
-            exchange="DEMO",
-            segment="DEMO",
-        )
-        db.add(underlying)
-        db.flush()
-        db.get(Instrument, instrument_id).underlying_id = underlying.id
+    root.mkdir(parents=True, exist_ok=True)
 
     day = date(2026, 11, 6)
 
     with Session(engine) as db:
-        start = datetime.combine(day, time(3, 45), timezone.utc)
-        base_price = 100
         fixture = tmp_path / f"session-{day}.csv"
-        fixture.write_text(
-            "bar_time,open,high,low,close,volume\n"
-            + "".join(
-                f"{(start + timedelta(minutes=i)).isoformat()},{base_price + i*0.02},{base_price + i*0.02 + 0.1},{base_price + i*0.02 - 0.1},{base_price + i*0.02},1\n"
-                for i in range(50)
-            ),
-            encoding="utf-8",
-        )
+        _write_session_csv(fixture, day, num_bars=50, base_price=100, drift=0.02)
         import_fixture(
             db,
             fixture,
@@ -326,14 +279,21 @@ def session_1_day(tmp_path):
             timeframe="1m",
             session_date=day,
             session_start=time(9, 15),
-            session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=50)).time(),
+            session_end=time(10, 5),
             source_sha256=sha256(fixture.read_bytes()).hexdigest(),
         )
         db.commit()
 
     def _read_sessions(dates_to_read):
         with Session(engine) as db:
-            return read_sessions(db, root, "DEMO", instrument_id, "1m", tuple(dates_to_read))
+            return read_sessions(
+                db,
+                root,
+                provider="DEMO",
+                instrument_id=instrument_id,
+                timeframe="1m",
+                dates=tuple(dates_to_read),
+            )
 
     return engine, root, instrument_id, [day], _read_sessions
 
@@ -461,9 +421,9 @@ def test_walk_forward_respects_chronology(test_sessions):
         walk_forward(bad_order, (STRATEGY,), COST, train_size=2, test_size=1)
 
 
-def test_walk_forward_chronological_splits(test_sessions):
+def test_walk_forward_chronological_splits(sessions_4_days):
     """Walk-forward should create proper chronological train/test splits."""
-    engine, root, identity, dates, read_sessions = test_sessions
+    engine, root, identity, dates, read_sessions = sessions_4_days
     sessions = read_sessions(dates)
 
     folds = walk_forward(sessions, (STRATEGY,), COST, train_size=2, test_size=1)
@@ -753,32 +713,14 @@ class TestReportPersistence:
         """Verify backtest report is persisted with correct fingerprint."""
         engine, instrument_id = setup_db(tmp_path)
         root = tmp_path / "parquet"
-
-        with Session(engine) as db:
-            underlying = Instrument(
-                canonical_symbol="DEMO:UNDERLYING",
-                display_name="Index",
-                asset_class="INDEX",
-                exchange="DEMO",
-                segment="DEMO",
-            )
-            db.add(underlying)
-            db.flush()
-            db.get(Instrument, instrument_id).underlying_id = underlying.id
+        root.mkdir(parents=True, exist_ok=True)
 
         day = date(2026, 11, 6)
-        start = datetime.combine(day, time(3, 45), timezone.utc)
-        fixture = tmp_path / "session-complete.csv"
-        fixture.write_text(
-            "bar_time,open,high,low,close,volume\n"
-            + "".join(
-                f"{(start + timedelta(minutes=i)).isoformat()},{100 + i},{101 + i},{99 + i},{100 + i},1\n"
-                for i in range(100)
-            ),
-            encoding="utf-8",
-        )
 
         try:
+            fixture = tmp_path / "session-complete.csv"
+            _write_session_csv(fixture, day, num_bars=30, base_price=100, drift=0.01)
+
             with Session(engine) as db:
                 import_fixture(
                     db,
@@ -789,7 +731,7 @@ class TestReportPersistence:
                     timeframe="1m",
                     session_date=day,
                     session_start=time(9, 15),
-                    session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=100)).time(),
+                    session_end=time(9, 45),
                     source_sha256=sha256(fixture.read_bytes()).hexdigest(),
                 )
                 db.commit()
@@ -841,34 +783,15 @@ class TestReportPersistence:
         """Verify walk-forward report is persisted with correct fold structure."""
         engine, instrument_id = setup_db(tmp_path)
         root = tmp_path / "parquet"
-
-        with Session(engine) as db:
-            underlying = Instrument(
-                canonical_symbol="DEMO:UNDERLYING",
-                display_name="Index",
-                asset_class="INDEX",
-                exchange="DEMO",
-                segment="DEMO",
-            )
-            db.add(underlying)
-            db.flush()
-            db.get(Instrument, instrument_id).underlying_id = underlying.id
+        root.mkdir(parents=True, exist_ok=True)
 
         dates = [date(2026, 11, 2), date(2026, 11, 3), date(2026, 11, 4)]
 
         try:
             with Session(engine) as db:
                 for day in dates:
-                    start = datetime.combine(day, time(3, 45), timezone.utc)
                     fixture = tmp_path / f"session-{day}.csv"
-                    fixture.write_text(
-                        "bar_time,open,high,low,close,volume\n"
-                        + "".join(
-                            f"{(start + timedelta(minutes=i)).isoformat()},{100 + i},{101 + i},{99 + i},{100 + i},1\n"
-                            for i in range(30)
-                        ),
-                        encoding="utf-8",
-                    )
+                    _write_session_csv(fixture, day, num_bars=30, base_price=100, drift=0.01)
                     import_fixture(
                         db,
                         fixture,
@@ -878,7 +801,7 @@ class TestReportPersistence:
                         timeframe="1m",
                         session_date=day,
                         session_start=time(9, 15),
-                        session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=30)).time(),
+                        session_end=time(9, 45),
                         source_sha256=sha256(fixture.read_bytes()).hexdigest(),
                     )
                 db.commit()
@@ -924,32 +847,15 @@ class TestReportPersistence:
         """Verify that the same inputs always produce the same fingerprint."""
         engine, instrument_id = setup_db(tmp_path)
         root = tmp_path / "parquet"
+        root.mkdir(parents=True, exist_ok=True)
 
         day = date(2026, 11, 6)
-        start = datetime.combine(day, time(3, 45), timezone.utc)
 
         try:
-            with Session(engine) as db:
-                underlying = Instrument(
-                    canonical_symbol="DEMO:UNDERLYING",
-                    display_name="Index",
-                    asset_class="INDEX",
-                    exchange="DEMO",
-                    segment="DEMO",
-                )
-                db.add(underlying)
-                db.flush()
-                db.get(Instrument, instrument_id).underlying_id = underlying.id
+            fixture = tmp_path / "session.csv"
+            _write_session_csv(fixture, day, num_bars=30, base_price=100, drift=0.01)
 
-                fixture = tmp_path / "session.csv"
-                fixture.write_text(
-                    "bar_time,open,high,low,close,volume\n"
-                    + "".join(
-                        f"{(start + timedelta(minutes=i)).isoformat()},{100 + i},{101 + i},{99 + i},{100 + i},1\n"
-                        for i in range(100)
-                    ),
-                    encoding="utf-8",
-                )
+            with Session(engine) as db:
                 import_fixture(
                     db,
                     fixture,
@@ -959,7 +865,7 @@ class TestReportPersistence:
                     timeframe="1m",
                     session_date=day,
                     session_start=time(9, 15),
-                    session_end=(datetime.combine(day, time(9, 15)) + timedelta(minutes=100)).time(),
+                    session_end=time(9, 45),
                     source_sha256=sha256(fixture.read_bytes()).hexdigest(),
                 )
                 db.commit()
@@ -1009,8 +915,6 @@ def test_multi_day_aggregate_metrics(sessions_3_days):
         STRATEGY,
         regime_infos,
         option_type_map,
-        train_size=2,
-        test_size=1,
         quantity=D("1"),
     )
 

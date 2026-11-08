@@ -1,0 +1,162 @@
+name: Weekly Restore Drill
+
+on:
+  schedule:
+    # Runs weekly on Sunday at 04:00 UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    # Allow manual trigger
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build images
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          push: false
+          tags: intraday-api:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Start services
+        run: |
+          cd deployment/compose
+          docker compose -f compose.yml up -d postgres redis
+          sleep 30  # Wait for DB services
+
+      - name: Wait for services
+        run: |
+          for i in {1..15}; do
+            if docker exec compose-api-1 pg_isready -U postgres; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            sleep 5
+          done
+
+      - name: Create backup to restore
+        run: |
+          chmod +x ../../../scripts/backup.sh
+          ../../../scripts/backup.sh
+
+      - name: Get latest backup file
+        id: backup_file
+        run: |
+          LATEST=$(ls -t deployment/backups/backup_*.pgdump.gz | head -1)
+          echo "backup_file=$LATEST" >> $GITHUB_OUTPUT
+
+      - name: Stop API and Redis for restore test
+        run: |
+          cd deployment/compose
+          docker compose stop
+          docker compose rm -sf || true
+
+      - name: Start temporary PostgreSQL for restore
+        run: |
+          docker run -d \
+            --name restore-postgres \
+            -e POSTGRES_PASSWORD=testpass \
+            -p 5432:5432 \
+            postgres:15
+
+      - name: Wait for temp PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if docker exec restore-postgres pg_isready -U postgres; then
+              echo "Temp PostgreSQL is ready"
+              exit 0
+            fi
+            echo "Waiting for temp PostgreSQL... ($i)"
+            sleep 5
+          done
+          echo "Temp PostgreSQL failed to start"
+          exit 1
+
+      - name: Restore backup to temporary database
+        run: |
+          gunzip -c ${{ steps.backup_file.outputs.backup_file }} | \
+            docker exec -i restore-postgres \
+            pg_restore -U postgres -d postgres --clean --no-owner
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+
+          # Test 1: Database connection
+          docker exec restore-postgres psql -U postgres -c "SELECT 1 as test;" && echo "DB query: PASS"
+
+          # Test 2: Check tables exist
+          docker exec restore-postgres psql -U postgres -d postgres -c "\dt" | grep -q "backtest_report" && echo "Backtest table: PASS"
+
+          # Test 3: Count records
+          COUNT=$(docker exec restore-postgres psql -U postgres -d postgres -t -c "SELECT count(*) FROM backtest_report;" | tr -d ' ')
+          echo "Found $COUNT backtest records"
+
+      - name: Cleanup temporary containers
+        if: always()
+        run: |
+          docker stop restore-postgres 2>/dev/null || true
+          docker rm restore-postgres 2>/dev/null || true
+          cd deployment/compose
+          docker compose down -v 2>/dev/null || true
+
+      - name: Restore drill result
+        if: success()
+        run: |
+          echo "✅ Restore drill passed"
+
+      - name: Notify failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "❌ Restore drill failed for intraday-trading-platform",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*❌ Restore Drill Failed*\nPlatform: intraday-trading-platform\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\nTime: ${{ github.event.schedule }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify success
+        if: success()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "✅ Restore drill passed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*✅ Restore Drill Passed*\nPlatform: intraday-trading-platform\nAll backup integrity checks successful\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

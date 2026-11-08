@@ -2,17 +2,20 @@ services:
   db:
     image: postgres:16.6-alpine
     environment:
-      POSTGRES_USER: trading
+      POSTGRES_USER: ${POSTGRES_USER:-trading}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: trading
+      POSTGRES_DB: ${POSTGRES_DB:-trading}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trading -d trading"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trading} -d ${POSTGRES_DB:-trading}"]
       interval: 5s
       timeout: 3s
       retries: 10
-    networks: [private]
+    networks:
+      private:
+        aliases:
+          - db
   redis:
     image: redis:7.4.2-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -23,15 +26,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    networks: [private]
+    networks:
+      private:
+        aliases:
+          - redis
   api:
-    image: pednekarprasad23/intraday-trading-platform-api:0917d4f
+    build: ../../apps/api
+    image: intraday-api:local
     environment:
-      APP_ENV: development
-      DATABASE_URL: postgresql+psycopg://trading:${POSTGRES_PASSWORD}@db:5432/trading
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-trading}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-trading}
       REDIS_URL: redis://redis:6379/0
       HISTORICAL_DATA_ROOT: /var/lib/intraday/historical
       CREDENTIAL_KEY_PATH: /var/lib/intraday/credentials/key
+      AUTH_DISABLED: ${AUTH_DISABLED:-false}
     volumes:
       - historical_data:/var/lib/intraday/historical
       - credential_key:/var/lib/intraday/credentials
@@ -47,7 +55,8 @@ services:
       retries: 10
     networks: [private]
   web:
-    image: pednekarprasad23/intraday-trading-platform-web:0917d4f
+    build: ../../apps/web
+    image: intraday-web:local
     ports:
       - "127.0.0.1:8080:80"
     depends_on:
@@ -58,5 +67,6 @@ volumes:
   redis_data:
   historical_data:
   credential_key:
+  backup_data:
 networks:
   private:

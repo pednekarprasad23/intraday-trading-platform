@@ -2,6 +2,119 @@
 :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; color: #183048; background: #f2f5f8; font-synthesis: none; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
+
+/* Accessibility improvements for Phase 7 */
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .transition {
+    transition: none !important;
+  }
+}
+
+/* High contrast preference */
+@media (prefers-contrast: high) {
+  :root {
+    --color-primary: #000000;
+    --color-secondary: #333333;
+    --color-background: #ffffff;
+    --color-text: #000000;
+  }
+}
+
+/* Screen reader only text - visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Visible focus indicator enhancements */
+:focus-visible {
+  outline: 3px solid #3b83d5;
+  outline-offset: 3px;
+}
+
+/* Focus trap for modals/dialogs */
+.focus-trap {
+  position: relative;
+}
+
+.focus-trap:focus-within {
+  outline: 2px solid #3b83d5;
+}
+
+/* Skip link - hidden until focused */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #3b83d5;
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 100;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* ARIA live region styling */
+[aria-live="polite"] {
+  position: relative;
+}
+
+[aria-live="assertive"] {
+  position: relative;
+}
+
+/* Dialog styling with focus management */
+dialog, .modal {
+  overflow: auto;
+}
+
+dialog::backdrop, .modal-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Reduced opacity for disabled states */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Ensure minimum contrast ratio */
+@media (prefers-contrast: high) {
+  .primary-button {
+    background: #000000;
+    border-color: #000000;
+  }
+
+  .result-pill,
+  .status-list dt,
+  .status-list dd {
+    color: #000000;
+  }
+}
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { opacity: .55; cursor: not-allowed; }
@@ -22,6 +135,8 @@ p { line-height: 1.6; }
 .brand small { font-size: .76rem; color: #6c7f91; margin-top: 3px; }
 .topbar-right { display: flex; align-items: center; gap: 18px; }
 .mode-badge, .status-pill { display: inline-flex; align-items: center; border-radius: 100px; padding: 8px 12px; background: #e9f6f2; color: #126756; font-size: .69rem; font-weight: 800; letter-spacing: .075em; white-space: nowrap; }
+/* Brick red highlight - signature color */
+.highlight, .warning-badge { background: #c0392b; color: #fff; }
 .workspace-layout { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: calc(100vh - 76px); }
 .sidebar { display: flex; flex-direction: column; gap: 16px; background: #10263e; color: #dce7f2; padding: 32px 16px 24px; }
 .sidebar-label, .eyebrow { font-size: .69rem; font-weight: 800; letter-spacing: .14em; color: #537592; margin-bottom: 13px; }

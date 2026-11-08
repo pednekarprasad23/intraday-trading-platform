@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "Intraday Trading Platform API"
     app_version: str = "0.1.0"
     app_env: str = "development"
+    auth_disabled: bool = False
     database_url: str = "sqlite+pysqlite:///:memory:"
     redis_url: str = "redis://localhost:6379/0"
     session_ttl_seconds: int = 3600

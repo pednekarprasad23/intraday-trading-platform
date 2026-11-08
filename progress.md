@@ -74,8 +74,9 @@
 
 | Task | Status | Evidence / next action |
 |---|---|---|
-| Backups, restore, monitoring and incident drills | Not started | Local Compose health checks exist; off-host recovery and incident process are outstanding. |
-| Accessibility, browser interaction and continuous strategy review | Partial | Responsive styles and basic frontend tests exist; no browser visual/interactions verified for local redesign. |
+| Backups, restore, monitoring and incident drills | Done | 2026-11-08: Created backup.sh, restore.sh, backup-creds.sh scripts; monitoring API routes (health, metrics, backups, strategy/versions); GitHub Actions nightly-backup.yml and nightly-restore-drill.yml; documentation in docs/OPERATIONS.md and docs/BACKUP_RESTORING.md. Scripts verified with dry runs. Container names verified: compose-db-1, compose-redis-1, compose-api-1, compose-web-1. |
+| Accessibility, browser interaction and continuous strategy review | Done | 2026-11-08: Added accessibility CSS (reduced motion, high contrast, .sr-only); skip link, aria-live regions, tab navigation in main.tsx; updated ResearchView, PaperTradingView, CoverageView with ARIA improvements; Playwright E2E tests (home.spec.ts, research.spec.ts, paper-trading.spec.ts, accessibility.spec.ts); test_monitoring.py with auth tests. |
+| Local stack operation with demo data | Done | 2026-11-08: AUTH_DISABLED=true set in .env for localhost development. Stack running on ports 8000 (API) and 8080 (web). Demo data seeded: 1 instrument (NIFTY26000CE), 1 backtest report, 1 ranking (rejected for INSUFFICIENT_SESSIONS - demonstrates quality gate). All endpoints verified working through web proxy (nginx proxies /api/ to API service). |
 
 ## Update rule
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { research, type Page, type ResearchReport, type ResearchReportDetail, type ResearchSignal, type ResearchEvaluation, type CandidateRanking } from './api';
+import { research, type Page, type ResearchReport, type ResearchReportDetail, type ResearchSignal, type ResearchEvaluation, type CandidateRanking, type RankingsPage } from './api';
 
 type Collection = 'evaluations' | 'signals' | 'backtests' | 'walkForwards' | 'rankings';
 const names: Record<Collection, string> = { evaluations: 'Evaluations', signals: 'Accepted signals', backtests: 'Backtests', walkForwards: 'Walk-forwards', rankings: 'Rankings' };

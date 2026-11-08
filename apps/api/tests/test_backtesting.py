@@ -13,7 +13,7 @@ from app.historical.importer import import_fixture
 from app.historical.reader import read_sessions
 from app.models import HistoricalPartition, Instrument
 from app.strategies.contracts import StrategyConfig
-from tests.test_historical import setup_db
+from tests.test_historical import setup_db, _long_path
 
 STRATEGY = StrategyConfig("option-premium-ema-rsi", 1, 2, 3, 2, D(40), D(100))
 COST = SimulationConfig(D(1), D(1), D("0.01"), D("0.1"), D("0.2"), D("0.1"), D("0.2"))
@@ -89,8 +89,11 @@ def test_verified_reader_rejects_gaps_tampering_and_absent_sessions(tmp_path):
             )
         )
         path = root / part.relative_path
-        original = path.read_bytes()
-        path.write_bytes(b"corrupted")
+        path_long = _long_path(path)
+        with open(path_long, "rb") as f:
+            original = f.read()
+        with open(path_long, "wb") as f:
+            f.write(b"corrupted")
         with pytest.raises(ValueError, match="checksum"):
             read_sessions(
                 db,
@@ -100,7 +103,8 @@ def test_verified_reader_rejects_gaps_tampering_and_absent_sessions(tmp_path):
                 timeframe="1m",
                 dates=dates[:1],
             )
-        path.write_bytes(original)
+        with open(path_long, "wb") as f:
+            f.write(original)
         part.relative_path = "../escape.parquet"
         db.flush()
         with pytest.raises(ValueError, match="path"):

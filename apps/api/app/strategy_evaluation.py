@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import sys
 from dataclasses import asdict
 from datetime import time, timezone
 from decimal import Decimal
@@ -24,6 +25,13 @@ from app.models import (
 )
 from app.strategies.contracts import Candle, Source, StrategyConfig
 from app.strategies.engine import MAX_BARS, evaluate, validate_config
+
+
+def _long_path(path):
+    """Convert a path to a Windows long path if needed (bypasses MAX_PATH=260 limit)."""
+    if sys.platform == "win32":
+        return "\\\\?\\" + str(path).replace("/", "\\")
+    return str(path)
 
 
 def canonical(value) -> bytes:
@@ -155,9 +163,21 @@ def evaluate_fixture(
     if partition.relative_path != expected.as_posix():
         raise ValueError("Partition path mismatch")
     target = root.resolve() / expected
-    if not target.is_file() or target.is_symlink() or target.stat().st_size > MAX_BYTES:
-        raise ValueError("Partition missing or exceeds byte limit")
-    if hashlib.sha256(target.read_bytes()).hexdigest() != partition.checksum_sha256:
+
+    # On Windows, use long path prefix for file operations to bypass MAX_PATH=260 limit
+    if sys.platform == "win32":
+        target_long = Path(_long_path(target))
+        import os
+        if not os.path.isfile(target_long) or os.path.getsize(target_long) > MAX_BYTES:
+            raise ValueError("Partition missing or exceeds byte limit")
+        with open(_long_path(target), "rb") as f:
+            raw = f.read()
+    else:
+        if not target.is_file() or target.is_symlink() or target.stat().st_size > MAX_BYTES:
+            raise ValueError("Partition missing or exceeds byte limit")
+        raw = target.read_bytes()
+
+    if hashlib.sha256(raw).hexdigest() != partition.checksum_sha256:
         raise ValueError("Partition checksum mismatch")
     if not fixture.is_file() or fixture.stat().st_size > MAX_BYTES:
         raise ValueError("Fixture missing or too large")

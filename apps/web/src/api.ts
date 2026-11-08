@@ -12,6 +12,9 @@ export interface Page<T> { total: number; items: T[] }
 export interface MarketCoverageItem { instrument_id: string; canonical_symbol: string; display_name: string; asset_class: string; exchange: string; demo: boolean; provider: string; provider_instrument_key: string; provider_exchange: string | null; mapping_verified_at: string | null; data_enabled: boolean; execution_enabled: boolean; latest_historical_session: string | null; historical_partition_count: number; live_quote_available: boolean }
 export interface MarketCoverage extends Page<MarketCoverageItem> { live_feed_status: string; live_feed_note: string; observed_at: string }
 export interface CoverageFilters { search?: string; provider?: string; asset_class?: string; exchange?: string; demo?: string; historical?: string }
+export interface HistoricalPartition { id: string; provider: string; instrument_id: string; timeframe: string; session_date: string; checksum_sha256: string; row_count: number }
+export interface HistoricalCandle { bar_time: string; open: string; high: string; low: string; close: string; volume: string }
+export interface HistoricalCandlesPage { partition_id: string; provider: string; instrument_id: string; timeframe: string; session_date: string; checksum_sha256: string; total: number; limit: number; offset: number; items: HistoricalCandle[] }
 
 // ============================================================================
 // Paper Trading
@@ -124,6 +127,10 @@ export const market = { coverage: (offset = 0, filters: CoverageFilters = {}) =>
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
   return api<MarketCoverage>(`/market/coverage?${params}`);
 } };
+export const historical = {
+  partitions: () => api<Page<HistoricalPartition>>('/historical/partitions?limit=100&offset=0'),
+  candles: (partitionId: string, offset = 0) => api<HistoricalCandlesPage>(`/historical/partitions/${encodeURIComponent(partitionId)}/candles?limit=500&offset=${offset}`),
+};
 export const research = {
   signals: (offset = 0) => api<Page<ResearchSignal>>(`/research/signals?limit=20&offset=${offset}`),
   evaluations: (offset = 0) => api<Page<ResearchEvaluation>>(`/research/evaluations?limit=20&offset=${offset}`),

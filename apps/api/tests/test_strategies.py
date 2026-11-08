@@ -14,7 +14,7 @@ from app.strategies.contracts import Candle, Source, StrategyConfig
 from app.strategies.engine import evaluate
 from app.strategies.indicators import atr, ema, rsi, vwap
 from app.strategy_evaluation import evaluate_fixture
-from tests.test_historical import setup_db
+from tests.test_historical import setup_db, _long_path
 
 D = Decimal
 CONFIG = StrategyConfig("option-premium-ema-rsi", 1, 2, 3, 2, D("40"), D("100"))
@@ -149,13 +149,17 @@ def test_operator_revalidates_fixture_and_persists_exact_inputs(tmp_path):
         )
         assert len(db.scalars(select(StrategySignal)).all()) == 1
         partition_file = next((tmp_path / "parquet").rglob("*.parquet"))
-        original = partition_file.read_bytes()
-        partition_file.write_bytes(b"tampered")
+        partition_file_long = Path(_long_path(partition_file))
+        with open(partition_file_long, "rb") as f:
+            original = f.read()
+        with open(partition_file_long, "wb") as f:
+            f.write(b"tampered")
         with pytest.raises(ValueError, match="Partition checksum"):
             evaluate_fixture(
                 db, fixture, job_id=job.id, config=CONFIG, root=tmp_path / "parquet"
             )
-        partition_file.write_bytes(original)
+        with open(partition_file_long, "wb") as f:
+            f.write(original)
         fixture.write_text(fixture.read_text(encoding="utf-8") + "\n", encoding="utf-8")
         with pytest.raises(ValueError, match="checksum"):
             evaluate_fixture(

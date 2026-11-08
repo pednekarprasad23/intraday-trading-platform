@@ -23,12 +23,25 @@ def setup_db(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'historical.db'}")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
+        # Create underlying instrument (required by read_sessions)
+        underlying = Instrument(
+            canonical_symbol="DEMO:IND:INDIX",
+            display_name="Synthetic underlying index",
+            asset_class="INDEX",
+            exchange="DEMO",
+            segment="DEMO",
+        )
+        db.add(underlying)
+        db.flush()
+
+        # Create option instrument referencing the underlying
         instrument = Instrument(
             canonical_symbol="DEMO:OPTION:100CE",
             display_name="Synthetic option",
             asset_class="OPTION",
             exchange="DEMO",
             segment="DEMO",
+            underlying_id=underlying.id,
             expiry_date=date(2030, 12, 31),
             strike_price=Decimal("100"),
             option_type="CE",
@@ -44,6 +57,14 @@ def setup_db(tmp_path):
         )
         db.commit()
         return engine, instrument.id
+
+
+def _long_path(path):
+    """Convert a path to a Windows long path if needed."""
+    import sys
+    if sys.platform == "win32":
+        return "\\\\?\\" + str(path).replace("/", "\\")
+    return str(path)
 
 
 def test_import_deduplicates_reports_gaps_and_is_idempotent(tmp_path):
@@ -69,11 +90,11 @@ def test_import_deduplicates_reports_gaps_and_is_idempotent(tmp_path):
         partition = db.scalar(select(HistoricalPartition))
         assert (
             partition
-            and pq.ParquetFile(root / partition.relative_path).metadata.num_rows == 2
+            and pq.ParquetFile(_long_path(root / partition.relative_path)).metadata.num_rows == 2
         )
         assert db.scalar(select(HistoricalGap)) is not None
         assert (
-            sha256((root / partition.relative_path).read_bytes()).hexdigest()
+            sha256(open(_long_path(root / partition.relative_path), "rb").read()).hexdigest()
             == partition.checksum_sha256
         )
         assert len(db.scalars(select(HistoricalImportJob)).all()) == 1

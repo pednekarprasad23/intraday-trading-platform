@@ -1,6 +1,7 @@
 """Verified, bounded catalog reads. Missing sessions are never inferred as holidays."""
 
 import hashlib
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -27,6 +28,13 @@ IST = ZoneInfo("Asia/Kolkata")
 MAX_SESSIONS = 100
 
 
+def _long_path(path):
+    """Convert a path to a Windows long path if needed (bypasses MAX_PATH=260 limit)."""
+    if sys.platform == "win32":
+        return "\\\\?\\" + str(path).replace("/", "\\")
+    return str(path)
+
+
 @dataclass(frozen=True)
 class VerifiedSession:
     source: Source
@@ -45,7 +53,7 @@ def _utc(stamp: datetime) -> datetime:
 
 def read_sessions(
     db: Session,
-    root: Path,
+    root: Path | str,
     *,
     provider: str,
     instrument_id: UUID,
@@ -84,6 +92,8 @@ def read_sessions(
     if len(mappings) != 1:
         raise ValueError("Exactly one provider mapping required")
     mapping = mappings[0]
+    # Convert to Path and resolve - handle Windows long paths
+    root = Path(root) if isinstance(root, str) else root
     root = root.resolve(strict=True)
     result = []
     for day in dates:
@@ -144,15 +154,27 @@ def read_sessions(
         ):
             raise ValueError("Partition path or checksum identity mismatch")
         target = root / expected
-        if (
-            not target.is_file()
-            or target.is_symlink()
-            or target.resolve() != root / expected
-            or not target.resolve().is_relative_to(root)
-            or target.stat().st_size > MAX_BYTES
-        ):
-            raise ValueError("Unsafe, missing or oversized partition")
-        raw = target.read_bytes()
+
+        # On Windows, use long path prefix for file operations to bypass MAX_PATH=260 limit
+        if sys.platform == "win32":
+            target_str = _long_path(target)
+            # Check file exists and get size using the path directly
+            import os
+            if not os.path.isfile(target_str) or os.path.getsize(target_str) > MAX_BYTES:
+                raise ValueError("Unsafe, missing or oversized partition")
+            # Use long path for reading
+            with open(target_str, "rb") as fh:
+                raw = fh.read()
+        else:
+            if (
+                not target.is_file()
+                or target.is_symlink()
+                or target.resolve() != root / expected
+                or not target.resolve().is_relative_to(root)
+                or target.stat().st_size > MAX_BYTES
+            ):
+                raise ValueError("Unsafe, missing or oversized partition")
+            raw = target.read_bytes()
         if hashlib.sha256(raw).hexdigest() != part.checksum_sha256:
             raise ValueError("Partition checksum mismatch")
         try:

@@ -1,0 +1,34 @@
+# Overlay for Apper frontend integration
+# Use: docker compose -f compose.yml -f compose.overlay.yml up -d
+
+services:
+  # New Apper-based frontend service
+  web-apper:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+      target: apper-frontend
+    image: intraday-web:apper
+    ports:
+      - "127.0.0.1:8081:80"  # Separate port for Apper preview
+    environment:
+      - VITE_API_BASE_URL=/api
+    volumes:
+      - historical_data:/var/lib/intraday/historical
+      - credential_key:/var/lib/intraday/credentials
+    depends_on:
+      api: {condition: service_healthy}
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/api/v1/system/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    # Use the same Nginx config as main web, but with Apper build output
+
+volumes:
+  historical_data:
+  credential_key:
+
+networks:
+  private:

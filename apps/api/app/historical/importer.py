@@ -272,32 +272,52 @@ def import_fixture(
         / f"instrument_id={instrument.id}"
     )
     directory = root / relative_dir
+    # Create the full directory tree. pathlib.mkdir(parents=True) works
+    # reliably on Windows when given a pure Path object.
+    if not root.exists():
+        root.mkdir(parents=True, exist_ok=True)
     directory.mkdir(parents=True, exist_ok=True)
+
     staging = directory / f".{uuid4().hex}.staging"
     try:
-        pq.write_table(table, staging, compression="zstd")
-        with staging.open("rb") as handle:
-            os.fsync(handle.fileno())
-        readback = pq.ParquetFile(staging).read()
+        # Use the \\?\ prefix for long paths on Windows (MAX_PATH = 260).
+        # pathlib Path.open() and open() both fail on long paths without this prefix.
+        import sys as _sys
+        if _sys.platform == "win32":
+            staging_str = "\\\\?\\" + str(staging).replace("/", "\\")
+        else:
+            staging_str = str(staging)
+        # Write parquet
+        with open(staging_str, "wb") as fh:
+            pq.write_table(table, fh, compression="zstd")
+            fh.flush()
+            os.fsync(fh.fileno())
+        # Readback verification
+        with open(staging_str, "rb") as fh:
+            readback = pq.ParquetFile(fh).read()
         if (
             readback.schema != SCHEMA
             or readback.num_rows != len(rows)
             or not readback.equals(table)
         ):
             raise ValueError("Parquet readback mismatch")
-        checksum = _sha256(staging.read_bytes())
+        checksum = _sha256(open(staging_str, "rb").read())
         final = directory / f"{checksum}.parquet"
         if final.exists():
             raise ValueError("Uncataloged final file exists; operator review required")
         # Exclusive creation avoids silently replacing an uncommitted file from
         # another importer; the staging file is on the same filesystem.
-        os.link(staging, final)
-        staging.unlink()
-        directory_fd = os.open(directory, os.O_RDONLY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        final_str = "\\\\?\\" + str(final).replace("/", "\\") if _sys.platform == "win32" else str(final)
+        os.link(staging_str, final_str)
+        Path(staging_str).unlink()
+        # fsync directory to ensure rename is durable (skip on Windows — \\?\ paths
+        # don't work with os.open for directories there).
+        if _sys.platform != "win32":
+            directory_fd = os.open(str(directory), os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
         job = HistoricalImportJob(
             provider=provider,
             provider_instrument_key=provider_key,
