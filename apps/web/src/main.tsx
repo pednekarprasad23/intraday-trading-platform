@@ -11,6 +11,7 @@ import { HistoricalView } from './HistoricalView';
 import { InstrumentsView } from './InstrumentsView';
 import { GlobalStatusBar } from './GlobalStatusBar';
 import { StatusBadge } from './StatusBadge';
+import { DashboardView } from './DashboardView';
 
 type View = 'dashboard' | 'research' | 'market' | 'instruments' | 'system' | 'paper' | 'historical' | 'orders' | 'positions' | 'risk' | 'reconcile';
 
@@ -227,40 +228,7 @@ export function App() {
               </p>
             )}
 
-            {view === 'dashboard' && (
-              <div style={{ display: 'grid', gap: '24px' }}>
-                <section className="workspace-panel">
-                  <div className="section-heading">
-                    <div>
-                      <p className="eyebrow">OPERATIONAL OVERVIEW</p>
-                      <h2>Command Dashboard</h2>
-                    </div>
-                    <button className="quiet-button" onClick={() => void load(search)}>Refresh Telemetry</button>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', margin: '20px 0' }}>
-                    <div style={{ background: '#fff', padding: '18px', borderRadius: '12px', border: '1px solid #e3e9f0' }}>
-                      <small style={{ color: '#6c7f91', fontWeight: 700 }}>ENVIRONMENT</small>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '6px', color: '#152a42' }}>{status?.environment || 'development'}</div>
-                    </div>
-                    <div style={{ background: '#fff', padding: '18px', borderRadius: '12px', border: '1px solid #e3e9f0' }}>
-                      <small style={{ color: '#6c7f91', fontWeight: 700 }}>TRADING MODE</small>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '6px', color: '#126756' }}>{status?.trading_mode || 'PAPER'}</div>
-                    </div>
-                    <div style={{ background: '#fff', padding: '18px', borderRadius: '12px', border: '1px solid #e3e9f0' }}>
-                      <small style={{ color: '#6c7f91', fontWeight: 700 }}>MARKET FEED</small>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '6px', color: '#152a42' }}>{status?.market_data || 'Dhan / MT5'}</div>
-                    </div>
-                  </div>
-                  <p className="notice-inline">
-                    Welcome to Roadmap V2 Operations Cockpit. Use the sidebar to navigate between Paper Trading, Research, Orders, Positions, Risk Controls, and System Health.
-                  </p>
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                    <button className="primary-button" onClick={() => setView('paper')}>Open Paper Trading</button>
-                    <button className="quiet-button" onClick={() => setView('research')}>View Research Reports</button>
-                  </div>
-                </section>
-              </div>
-            )}
+            {view === 'dashboard' && <DashboardView />}
 
             {view === 'research' && <ResearchView />}
             {(view === 'market' || view === 'orders' || view === 'positions' || view === 'risk') && (
