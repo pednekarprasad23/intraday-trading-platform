@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
@@ -50,12 +51,13 @@ class TestKillSwitch:
             available_capital=Decimal("1000000"),
             max_position_value=Decimal("500000"),
             max_daily_loss=Decimal("100000"),
+            max_total_exposure=Decimal("1000000"),
         )
         db.add(account)
         db.commit()
 
         # Get an instrument
-        inst = db.scalar(select(Instrument).first())
+        inst = db.scalar(select(Instrument).limit(1))
         if inst is None:
             pytest.skip("No instruments in DB")
 
@@ -89,7 +91,7 @@ class TestRiskValidation:
     @pytest.fixture
     def paper_account(self, db: Session) -> PaperAccount:
         account = PaperAccount(
-            name="Test Account",
+            name=f"Test Account {uuid4().hex[:8]}",
             currency="INR",
             initial_capital=Decimal("1000000"),
             available_capital=Decimal("1000000"),
@@ -103,7 +105,7 @@ class TestRiskValidation:
 
     @pytest.fixture
     def test_instrument(self, db: Session) -> Instrument:
-        inst = db.scalar(select(Instrument).first())
+        inst = db.scalar(select(Instrument).limit(1))
         if inst is None:
             pytest.skip("No instruments in DB")
         return inst
@@ -175,7 +177,7 @@ class TestPaperOrderLifecycle:
     def setup_paper_data(self, db: Session):
         """Setup paper account and instrument."""
         account = PaperAccount(
-            name="Test Account",
+            name=f"Order Lifecycle Test {uuid4().hex[:8]}",
             currency="INR",
             initial_capital=Decimal("1000000"),
             available_capital=Decimal("1000000"),
@@ -187,7 +189,7 @@ class TestPaperOrderLifecycle:
         db.flush()
 
         # Get existing instrument
-        inst = db.scalar(select(Instrument).first())
+        inst = db.scalar(select(Instrument).limit(1))
         if inst is None:
             pytest.skip("No instruments in DB")
 
@@ -231,7 +233,11 @@ class TestPaperPosition:
     def test_position_aggregation(self, db: Session, setup_position):
         """Test position quantity aggregation."""
         account = setup_position
-        inst = db.scalar(select(Instrument).first())
+        inst = db.scalar(select(Instrument).limit(1))
+        if inst is None:
+            pytest.skip("No instruments")
+
+        inst = db.scalar(select(Instrument).limit(1))
         if inst is None:
             pytest.skip("No instruments")
 
@@ -253,7 +259,7 @@ class TestRiskEventLogging:
     @pytest.fixture
     def setup_risk_test(self, db: Session):
         account = PaperAccount(
-            name="Risk Test",
+            name=f"Risk Test {uuid4().hex[:8]}",
             currency="INR",
             initial_capital=Decimal("1000000"),
             available_capital=Decimal("1000000"),

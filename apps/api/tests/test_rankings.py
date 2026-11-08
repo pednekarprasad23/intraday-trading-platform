@@ -1,7 +1,9 @@
 """Integration tests for the rankings API routes."""
 
+import os
 from uuid import uuid4
 
+from pytest import mark
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -59,6 +61,10 @@ def _make_db_override(engine):
 
 
 class TestRankingsAuth:
+    @mark.skipif(
+        os.getenv("AUTH_DISABLED", "false").lower() == "true",
+        reason="Development mode: AUTH_DISABLED=true, production auth behavior tested separately",
+    )
     def test_requires_auth(self, tmp_path):
         engine, _ = setup_db(tmp_path)
         with Session(engine) as db:

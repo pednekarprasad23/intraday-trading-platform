@@ -8,6 +8,8 @@ Tests verify:
 5. DHAN tokens are non-empty strings
 """
 
+from decimal import Decimal
+
 import pytest
 
 from app.instruments import mappings as p3
@@ -26,39 +28,39 @@ class TestIndexes:
     def test_niftybank_structure(self):
         assert p3.NIFTYBANK.canonical == "DEMO:NIFTYBANK"
         assert p3.NIFTYBANK.exchange == "NSE"
-        assert p3.NIFTYBANK.tick_size == 0.05
+        assert Decimal(str(p3.NIFTYBANK.tick_size)) == Decimal("0.05")
 
     def test_sensex_structure(self):
         assert p3.SENSEX.canonical == "DEMO:SENSEX"
         assert p3.SENSEX.exchange == "BSE"
-        assert p3.SENSEX.tick_size == 1.0  # SENSEX ticks in whole points
+        assert Decimal(str(p3.SENSEX.tick_size)) == Decimal("1.0")
 
     def test_finnifty_structure(self):
         assert p3.FINNIFTY.canonical == "DEMO:FINNIFTY"
         assert p3.FINNIFTY.exchange == "NSE"
-        assert p3.FINNIFTY.tick_size == 0.05
+        assert Decimal(str(p3.FINNIFTY.tick_size)) == Decimal("0.05")
 
 
 class TestIndexFutures:
     """Index future tests."""
 
     def test_nifty_futures_underlying(self):
-        assert p3.NIFTY_FUT.underlying_canonical == "DEMO:NIFTY"
-        assert p3.NIFTY_FUT.lot_size == 25
-        assert p3.NIFTY_FUT.tick_size == 0.05
+        assert p3.NIFTY_FUT.underlying_id == "DEMO:NIFTY"
+        assert Decimal(str(p3.NIFTY_FUT.lot_size)) == Decimal("25")
+        assert Decimal(str(p3.NIFTY_FUT.tick_size)) == Decimal("0.05")
 
     def test_banknifty_futures_lot(self):
-        assert p3.BANKNIFTY_FUT.underlying_canonical == "DEMO:BANKNIFTY"
-        assert p3.BANKNIFTY_FUT.lot_size == 30
+        assert p3.BANKNIFTY_FUT.underlying_id == "DEMO:BANKNIFTY"
+        assert Decimal(str(p3.BANKNIFTY_FUT.lot_size)) == Decimal("30")
 
     def test_sensex_futures_tick_value(self):
         # SENSEX Futures tick = ₹1, lot = 10 -> ₹10 per tick
-        assert p3.SENSEX_FUT.lot_size == 10
-        assert p3.SENSEX_FUT.tick_size == 1.0
+        assert Decimal(str(p3.SENSEX_FUT.lot_size)) == Decimal("10")
+        assert Decimal(str(p3.SENSEX_FUT.tick_size)) == Decimal("1.0")
 
     def test_finnifty_futures_lot(self):
-        assert p3.FINNIFTY_FUT.underlying_canonical == "DEMO:FINNIFTY"
-        assert p3.FINNIFTY_FUT.lot_size == 15
+        assert p3.FINNIFTY_FUT.underlying_id == "DEMO:FINNIFTY"
+        assert Decimal(str(p3.FINNIFTY_FUT.lot_size)) == Decimal("15")
 
 
 class TestEquityStocks:
@@ -75,7 +77,7 @@ class TestEquityStocks:
     def test_equity_tick_size(self):
         """NSE equity tick is 0.05 rupees."""
         for stock in p3.EQUITY_STOCKS:
-            assert stock.tick_size == 0.05
+            assert Decimal(str(stock.tick_size)) == Decimal("0.05")
 
     def test_reliance_symbol(self):
         rely = next(s for s in p3.EQUITY_STOCKS if "RELIANCE" in s.canonical)
@@ -111,21 +113,21 @@ class TestMT5Contracts:
     def test_mt5_gold_spec(self):
         assert p3.MT5_GOLD.canonical == "DEMO:XAUUSD"
         assert p3.MT5_GOLD.symbol == "XAUUSD"
-        assert p3.MT5_GOLD.lot_size == 100  # 100 oz
-        assert p3.MT5_GOLD.tick_size == 0.01
+        assert Decimal(str(p3.MT5_GOLD.lot_size)) == Decimal("100")
+        assert Decimal(str(p3.MT5_GOLD.tick_size)) == Decimal("0.01")
         assert p3.MT5_GOLD.currency == "USD"
 
     def test_mt5_btc_spec(self):
         assert p3.MT5_BTC.canonical == "DEMO:BTCUSD"
         assert p3.MT5_BTC.symbol == "BTCUSD"
-        assert p3.MT5_BTC.lot_size == 1  # 1 BTC
-        assert p3.MT5_BTC.tick_size == 0.01
+        assert Decimal(str(p3.MT5_BTC.lot_size)) == Decimal("1")
+        assert Decimal(str(p3.MT5_BTC.tick_size)) == Decimal("0.01")
         assert p3.MT5_BTC.currency == "USD"
 
     def test_mt5_gold_point_value(self):
         # Gold point value = $0.10 per 0.01 move per 1 unit
         # Standard lot = 100 oz
-        assert p3.MT5_GOLD.point_value == 0.10
+        assert Decimal(str(p3.MT5_GOLD.point_value)) == Decimal("0.10")
 
     def test_mt5_btc_247_trading(self):
         # Bitcoin trades 24/7 on MT5
@@ -160,8 +162,8 @@ class TestDHANTokens:
     def test_dhan_reliance_token(self):
         rel = p3.DHAN_NSE_EQ_TOKENS["DEMO:RELIANCE"]
         assert rel["token"] == "28359"
-        assert rel["lot_size"] == 1  # cash
-        assert rel["tick_size"] == 0.05
+        assert Decimal(str(rel["lot_size"])) == Decimal("1")  # cash
+        assert Decimal(str(rel["tick_size"])) == Decimal("0.05")
 
 
 class TestMT5Symbols:

@@ -33,3 +33,12 @@ coverage/
 postgres-data/
 redis-data/
 *.log
+
+# Cookies and runtime artifacts
+cookies.txt
+cookies-*.txt
+
+# Backup artifacts (must never be committed)
+deployment/backups/
+*.dump
+*.pgdump

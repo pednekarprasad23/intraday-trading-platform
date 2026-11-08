@@ -1,0 +1,8 @@
+# Playwright test artifacts
+playwright-report/
+test-results/
+
+# Do not commit test artifacts - these are transient
+*.png
+*.md
+!.gitignore

@@ -56,6 +56,7 @@ def register_strategy(
         "created_at": datetime.utcnow().isoformat(),
         "metrics": [],
     }
+    registry["strategy_id"] = strategy_id
     return registry
 
 
@@ -107,7 +108,9 @@ def record_performance(
     registry = STRATEGY_REGISTRY[strategy_id]
     registry["versions"][snapshot["version"]]["metrics"].append(snapshot)
 
-    return snapshot
+    result = dict(snapshot)
+    result["strategy_id"] = strategy_id
+    return result
 
 
 def get_strategy_history(

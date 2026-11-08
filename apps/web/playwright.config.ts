@@ -25,27 +25,19 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['list'],
-    ['html', { open: 'never', outputFolder: 'test-results/html' }],
+    ['html', { open: 'never' }],
   ],
 
   /* Shared settings for all the projects */
-  uses: {
+  use: {
     /* Base URL to test - frontend is served on port 8080 */
-    baseURL: 'http://localhost:8080',
+    baseURL: 'http://127.0.0.1:8080',
 
     /* Collect trace on retry for easier debugging */
     trace: 'on-first-retry',
 
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
-  },
-
-  /* Web server to start before tests */
-  webServer: {
-    command: 'npm run build && npm run preview',
-    url: 'http://localhost:8080',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
   },
 
   /* Configure projects for different browsers */

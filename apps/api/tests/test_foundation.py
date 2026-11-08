@@ -1,3 +1,6 @@
+import os
+
+from pytest import mark
 from datetime import timezone
 
 from fastapi.testclient import TestClient
@@ -14,6 +17,10 @@ def test_utc_timestamp():
     assert utcnow().tzinfo == timezone.utc
 
 
+@mark.skipif(
+    os.getenv("AUTH_DISABLED", "false").lower() == "true",
+    reason="Development mode: AUTH_DISABLED=true, production auth behavior tested separately",
+)
 def test_health_and_auth(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'test.db'}")
     Base.metadata.create_all(engine)

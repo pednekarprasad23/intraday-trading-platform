@@ -97,12 +97,21 @@ def ready():
 
 @app.get("/api/v1/system/status", dependencies=[Depends(require_user)])
 def system_status():
+    # Check actual credential presence without exposing secrets
+    credential_exists = False
+    try:
+        import os
+        key_path = settings.credential_key_path
+        credential_exists = os.path.exists(key_path) and os.path.getsize(key_path) > 0
+    except Exception:
+        pass
+
     return {
         "version": settings.app_version,
         "environment": settings.app_env,
         "trading_mode": "PAPER_TRADING",
         "live_trading_enabled": False,
-        "market_data": "connected",
+        "market_data": "credential_present" if credential_exists else "no_credential",
         "market_provider": "DHAN",
         "market_data_provenance": "dhan_api_v2",
         "demo_data": False,

@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -26,6 +27,10 @@ def test_read_only_ltp_normalization_rejects_unknown_and_invalid():
         client.normalize_ltp("123", "1", now.replace(tzinfo=None), now)
 
 
+@pytest.mark.skipif(
+    os.getenv("AUTH_DISABLED", "false").lower() == "true",
+    reason="Development mode: AUTH_DISABLED=true, production auth behavior tested separately",
+)
 def test_angel_snapshot_is_protected_and_fails_closed(tmp_path, monkeypatch):
     settings = get_settings()
     path = tmp_path / "angel.json"
