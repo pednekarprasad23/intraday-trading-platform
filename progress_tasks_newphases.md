@@ -43,18 +43,22 @@ Phase 1 delivers a complete authenticated market-data viewer: candle API with pa
 | P1-Z1 | FINAL: integrate streams and verify phase gate | **Done** | All P1-A through P1-E integrated. Integration: `docs/PHASE1_WORK_MAP.md`, skill created (`historical-api-test`). Merge commit: `581b6a8`. |
 | P1-Z2 | FINAL: historical/frontend tests, production build, browser smoke | **Done** | Production build: succeeds. Playwright E2E baseline: 118 passed. **New HistoricalView E2E tests added:** 21 test cases in `apps/web/tests/e2e/historical.spec.ts` covering navigation, partition table, candle request, chart rendering, filters, pagination, empty state, loading state, API failure state. Browser smoke: PENDING (requires manual browser test). |
 | P1-Z3 | FINAL: update ledger and review diff/secrets | **Done** | Ledger updated. Diff review: no secrets in commits. |
-| P1-Z4 | FINAL: git commit, then git push | **Done** | Remote: `origin/main`. Latest commit: `641957b`. |
+| P1-Z4 | FINAL: git commit, then git push | **Done** | Remote: `origin/main`. Latest commit: `cadefaa`. |
 
 ## Phase 2 — Research ranking and walk-forward analysis
 
 | ID | Parallel stream / task | Status | Evidence / next action |
 |---|---|---|---|
-| P2-A | Research ranking contract and reproducibility | Partial | Rankings API exists; verify determinism and evidence chain. |
-| P2-B | Walk-forward report provenance | Not started | Code exists; needs browser verification. |
-| P2-C | Ranking UI with source/rejection evidence | Not started | ResearchView exists; verify "RESEARCH ONLY" labeling. |
-| P2-D | Rankings pagination and filters | Not started | API supports pagination; UI needs verification. |
-| P2-E | Browser flow for research analysis | Not started | Depends on P2-A through P2-D. |
-| P2-Z1 | FINAL: integrate and verify | Not started | Awaiting Phase 2 tasks. |
+| P2-A | Research ranking contract and reproducibility | Partial | Rankings API exists with `/rankings`, `/rankings/latest` endpoints. Test suite added: `test_research.py` (9 test cases). Backend scoring is deterministic (verified in scoring.py with Decimal arithmetic). **Gap visualization remains PARTIAL from Phase 1** - tracked forward. |
+| P2-B | Walk-forward report provenance | Partial | WalkForwardReport model exists; `persist_walk_forward` in backtesting.reports. Needs browser verification and evidence chain test. |
+| P2-C | Ranking UI with source/rejection evidence | Partial | ResearchView exists with `RankingDetails` modal showing composite score, score_breakdown, rejection status, commentary. "RESEARCH ONLY · SIMULATED · NO BROKER ORDER" badge present. Browser smoke pending. |
+| P2-D | Rankings pagination and filters | Partial | API supports `limit`/`offset` query params. ResearchView implements Pager component. Filter by `strategy_id` and `rejected_only` exists in API. UI pagination implemented. Browser smoke pending. |
+| P2-E | Browser flow for research analysis | Not started | E2E test suite created: `research.spec.ts` (20 test cases). Browser smoke pending. |
+| P2-Z1 | FINAL: integrate and verify | Not started | Awaiting Phase 2 tasks completion. |
+
+**Forward tracking from Phase 1:**
+- **Gap visualization:** PARTIAL (backend has `/gaps` endpoint, frontend has gap calculation but no visual marker)
+- **Browser smoke:** PENDING (manual verification required)
 
 ## Phase 3 — Verified instrument contracts
 

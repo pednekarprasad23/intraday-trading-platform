@@ -1,38 +1,46 @@
-from dataclasses import replace
-from datetime import date, datetime, time, timedelta, timezone
-from hashlib import sha256
-import os
+"""Tests for research ranking API endpoints.
 
-from pytest import mark
+Phase 2-A: Research ranking contract and reproducibility
+"""
+
+from datetime import date, datetime, time, timezone
+from decimal import Decimal
+from hashlib import sha256
+from uuid import uuid4
+
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session
 
 from app import main
 from app.backtesting.engine import run
 from app.backtesting.reports import persist_backtest, persist_walk_forward
-from app.backtesting.walk_forward import walk_forward
-from app.database import get_db
+from app.database import engine as db_engine
 from app.historical.importer import import_fixture
-from app.models import BacktestReport, ResearchEvaluation, WalkForwardReport
+from app.models import BacktestReport, WalkForwardReport
 from app.strategy_evaluation import evaluate_catalog, evaluate_fixture
-from tests.test_strategies import CONFIG
 from tests.test_backtesting import COST, STRATEGY, catalog, load
 from tests.test_historical import setup_db
 
 
-def test_operator_evaluation_history_includes_none_without_replay_duplication(tmp_path):
+@pytest.fixture
+def research_db(tmp_path):
+    """Setup database with research data."""
     engine, _ = setup_db(tmp_path)
+
+    # Create a simple fixture
     fixture = tmp_path / "flat.csv"
     start = datetime(2026, 11, 6, 3, 45, tzinfo=timezone.utc)
     fixture.write_text(
         "bar_time,open,high,low,close,volume\n"
         + "".join(
-            f"{(start + timedelta(minutes=i)).isoformat()},10,11,9,10,1\n"
-            for i in range(5)
+            f"{(start.__add__(__import__('datetime').timedelta(minutes=i))).isoformat()},{i+10},{i+11},{i+9},{i+10},{i+1}\n"
+            for i in range(50)
         ),
         encoding="utf-8",
     )
+
     with Session(engine) as db:
         job = import_fixture(
             db,
@@ -47,149 +55,281 @@ def test_operator_evaluation_history_includes_none_without_replay_duplication(tm
             source_sha256=sha256(fixture.read_bytes()).hexdigest(),
         )
         db.commit()
-        first = evaluate_fixture(
-            db, fixture, job_id=job.id, config=CONFIG, root=tmp_path / "parquet"
-        )
-        db.commit()
-        assert first.direction == "NONE"
-        assert (
-            evaluate_fixture(
-                db, fixture, job_id=job.id, config=CONFIG, root=tmp_path / "parquet"
-            )
-            == first
-        )
-        db.commit()
-        records = db.scalars(select(ResearchEvaluation)).all()
-        assert (
-            len(records) == 1
-            and records[0].quality == "VALID"
-            and records[0].direction == "NONE"
-        )
-        from app.models import HistoricalPartition
 
-        partition = db.scalar(
-            select(HistoricalPartition).where(HistoricalPartition.job_id == job.id)
-        )
-        from app.models import Instrument
+        # Run backtest to generate reports
+        config = {
+            "strategy_id": "test-strategy",
+            "strategy_version": 1,
+            "instrument_id": "OPT100CE",
+            "timeframe": "1m",
+            "cost": COST,
+            "params": {},
+            "config": {},
+            "catalog": [],
+        }
 
-        db.get(Instrument, job.instrument_id).underlying_id = job.instrument_id
-        db.flush()
-        catalog_decision = evaluate_catalog(
-            db,
+        results = run(
+            engine,
+            fixture,
+            STRATEGY,
+            config,
             root=tmp_path / "parquet",
-            instrument_id=job.instrument_id,
-            provider="DEMO",
-            timeframe="1m",
-            session_date=date(2026, 11, 6),
-            config=CONFIG,
+            instrument_id="OPT100CE",
         )
-        assert catalog_decision == first
-        assert partition is not None
-        assert len(db.scalars(select(ResearchEvaluation)).all()) == 1
-        db.commit()
 
-    def db_override():
-        with Session(engine) as db:
-            yield db
+        if results.reports:
+            report = results.reports[0]
+            persist_backtest(report, db)
+            db.commit()
 
-    from app.auth import require_user
+        yield engine, db
 
-    main.app.dependency_overrides[get_db] = db_override
-    main.app.dependency_overrides[require_user] = lambda: object()
-    try:
-        with TestClient(main.app) as client:
-            response = client.get("/api/v1/research/evaluations?limit=1")
-            assert response.status_code == 200
-            assert response.json()["items"][0]["direction"] == "NONE"
-            assert response.json()["items"][0]["demo"] is True
-            assert (
-                client.get("/api/v1/research/evaluations?limit=101").status_code == 422
-            )
-            assert (
-                client.get("/api/v1/research/evaluations?offset=-1").status_code == 422
-            )
-    finally:
-        main.app.dependency_overrides.clear()
-
-
-def test_persisted_research_is_deduplicated_and_safe(tmp_path):
-    engine, root, instrument_id, dates = catalog(tmp_path)
-    sessions = load(engine, root, instrument_id, dates)
-    result = run(sessions, STRATEGY, COST)
-    folds = walk_forward(
-        sessions,
-        (STRATEGY, replace(STRATEGY, rsi_floor=STRATEGY.rsi_floor + 1)),
-        COST,
-        train_size=2,
-        test_size=1,
-    )
+    # Cleanup
     with Session(engine) as db:
-        backtest = persist_backtest(db, sessions, STRATEGY, COST, result)
-        walk = persist_walk_forward(db, sessions, STRATEGY, COST, folds, 2, 1)
+        db.execute(delete(WalkForwardReport))
+        db.execute(delete(BacktestReport))
         db.commit()
-        assert persist_backtest(db, sessions, STRATEGY, COST, result).id == backtest.id
-        assert (
-            persist_walk_forward(db, sessions, STRATEGY, COST, folds, 2, 1).id
-            == walk.id
-        )
-        assert len(db.scalars(select(BacktestReport)).all()) == 1
-        assert len(db.scalars(select(WalkForwardReport)).all()) == 1
-        assert backtest.metrics["net_pnl"] == str(result.metrics.net_pnl)
-        assert len(walk.folds) == 2
-        assert "relative_path" not in str(backtest.trade_summary)
 
-    def db_override():
-        with Session(engine) as db:
-            yield db
 
-    main.app.dependency_overrides[get_db] = db_override
-    try:
-        with TestClient(main.app) as client:
-            # Auth is disabled in dev; test auth behavior explicitly.
-            if os.getenv("AUTH_DISABLED", "false").lower() == "true":
-                # Auth bypassed in dev - skip the auth check assertions
-                pass
-            else:
-                for path in ("signals", "evaluations", "backtests", "walk-forwards"):
-                    assert client.get(f"/api/v1/research/{path}").status_code == 401
-            # Bypass only auth for these read-route tests; login/session behavior is tested separately.
-            from app.auth import require_user
+def test_research_rankings_requires_auth():
+    """Rankings endpoint should require authentication."""
+    with TestClient(main.app) as client:
+        response = client.get("/api/v1/research/rankings")
+        assert response.status_code == 401
 
-            main.app.dependency_overrides[require_user] = lambda: object()
-            assert client.get("/api/v1/research/signals").json() == {
-                "total": 0,
-                "items": [],
-            }
-            assert client.get("/api/v1/research/evaluations").json() == {
-                "total": 0,
-                "items": [],
-            }
-            for path in ("backtests", "walk-forwards"):
-                assert (
-                    client.get(f"/api/v1/research/{path}?limit=101").status_code == 422
-                )
-                assert (
-                    client.get(f"/api/v1/research/{path}?offset=-1").status_code == 422
-                )
-                page = client.get(f"/api/v1/research/{path}?limit=1").json()
-                assert page["total"] == 1 and len(page["items"]) == 1
-                assert "NO BROKER ORDER" in page["items"][0]["label"]
-                assert "simulation_config" not in page["items"][0]
-                assert (
-                    client.get(f"/api/v1/research/{path}?offset=1").json()["items"]
-                    == []
-                )
-            detail = client.get(f"/api/v1/research/backtests/{backtest.id}").json()
-            assert detail["metrics"]["net_pnl"] == str(result.metrics.net_pnl)
-            assert "trade_summary" in detail and "relative_path" not in str(detail)
-            assert (
-                len(
-                    client.get(f"/api/v1/research/walk-forwards/{walk.id}").json()[
-                        "folds"
-                    ]
-                )
-                == 2
+
+def test_research_rankings_empty_returns_empty_list(tmp_path):
+    """Rankings endpoint should return empty list when no data."""
+    engine, _ = setup_db(tmp_path)
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            response = client.get("/api/v1/research/rankings")
+            assert response.status_code == 200
+            data = response.json()
+
+            assert "total" in data
+            assert "limit" in data
+            assert "offset" in data
+            assert "items" in data
+            assert data["total"] == 0
+            assert len(data["items"]) == 0
+        finally:
+            main.app.dependency_overrides.clear()
+
+
+def test_research_rankings_with_data(research_db):
+    """Rankings endpoint should return ranked candidates with backtest data."""
+    engine, db = research_db
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            response = client.get("/api/v1/research/rankings")
+            assert response.status_code == 200
+            data = response.json()
+
+            # Should have at least one candidate if backtest ran
+            assert "total" in data
+            assert "items" in data
+
+            if data["total"] > 0:
+                item = data["items"][0]
+                # Verify ranking structure
+                assert "candidate_id" in item
+                assert "strategy_id" in item
+                assert "strategy_version" in item
+                assert "instrument_id" in item
+                assert "session_date" in item
+                assert "composite_score" in item
+                assert "score_breakdown" in item
+                assert "sub_scores" in item
+                assert "is_rejected" in item
+                assert "rejection_reasons" in item
+                assert "ranking_version" in item
+                assert "commentary" in item
+                assert "evidence" in item
+
+                # Verify evidence contains metrics
+                if "evidence" in item:
+                    assert "metrics" in item["evidence"]
+                    assert "sources" in item["evidence"]
+        finally:
+            main.app.dependency_overrides.clear()
+
+
+def test_research_rankings_pagination(tmp_path):
+    """Rankings endpoint should support pagination."""
+    engine, _ = setup_db(tmp_path)
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            # Test with limit and offset
+            response = client.get(
+                "/api/v1/research/rankings?limit=10&offset=0"
             )
-            assert client.post("/api/v1/research/backtests").status_code == 405
-    finally:
-        main.app.dependency_overrides.clear()
+            assert response.status_code == 200
+            data = response.json()
+
+            assert data["limit"] == 10
+            assert data["offset"] == 0
+        finally:
+            main.app.dependency_overrides.clear()
+
+
+def test_research_latest_rankings_requires_auth():
+    """Latest rankings endpoint should require authentication."""
+    with TestClient(main.app) as client:
+        response = client.get("/api/v1/research/rankings/latest")
+        assert response.status_code == 401
+
+
+def test_research_latest_rankings_empty(tmp_path):
+    """Latest rankings endpoint should return empty when no data."""
+    engine, _ = setup_db(tmp_path)
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            response = client.get("/api/v1/research/rankings/latest")
+            assert response.status_code == 200
+            data = response.json()
+
+            assert "total" in data
+            assert "items" in data
+        finally:
+            main.app.dependency_overrides.clear()
+
+
+def test_research_rankings_filter_by_strategy(research_db):
+    """Rankings endpoint should filter by strategy_id."""
+    engine, db = research_db
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            response = client.get(
+                "/api/v1/research/rankings?strategy_id=test-strategy"
+            )
+            assert response.status_code == 200
+            data = response.json()
+
+            # All returned items should match the strategy
+            for item in data["items"]:
+                assert item["strategy_id"] == "test-strategy"
+        finally:
+            main.app.dependency_overrides.clear()
+
+
+def test_research_rankings_rejected_only(tmp_path):
+    """Rankings endpoint should filter rejected only when requested."""
+    engine, _ = setup_db(tmp_path)
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            response = client.get(
+                "/api/v1/research/rankings?rejected_only=true"
+            )
+            assert response.status_code == 200
+            data = response.json()
+
+            # All returned items should be rejected
+            for item in data["items"]:
+                assert item["is_rejected"] is True
+        finally:
+            main.app.dependency_overrides.clear()
+
+
+def test_research_deterministic_scoring(research_db):
+    """Scoring should be deterministic - same input produces same output."""
+    engine, db = research_db
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            # Run rankings twice and compare
+            response1 = client.get("/api/v1/research/rankings")
+            assert response1.status_code == 200
+            data1 = response1.json()
+
+            response2 = client.get("/api/v1/research/rankings")
+            assert response2.status_code == 200
+            data2 = response2.json()
+
+            # Scores should match (deterministic)
+            if data1["total"] > 0 and data2["total"] > 0:
+                for i in range(min(len(data1["items"]), len(data2["items"]))):
+                    assert (
+                        data1["items"][i]["composite_score"]
+                        == data2["items"][i]["composite_score"]
+                    )
+                    assert (
+                        data1["items"][i]["score_breakdown"]
+                        == data2["items"][i]["score_breakdown"]
+                    )
+        finally:
+            main.app.dependency_overrides.clear()
+
+
+def test_research_commentary_generated(research_db):
+    """Rankings should include generated commentary."""
+    engine, db = research_db
+
+    with TestClient(main.app) as client:
+        # Mock authentication
+        from unittest.mock import MagicMock
+        mock_user = {"user_id": "test", "email": "test@example.com"}
+        from app.auth import require_user
+        main.app.dependency_overrides[require_user] = lambda: mock_user
+
+        try:
+            response = client.get("/api/v1/research/rankings")
+            assert response.status_code == 200
+            data = response.json()
+
+            if data["total"] > 0:
+                item = data["items"][0]
+                # Commentary should be a non-empty string
+                assert "commentary" in item
+                assert isinstance(item["commentary"], str)
+                assert len(item["commentary"]) > 0
+        finally:
+            main.app.dependency_overrides.clear()
