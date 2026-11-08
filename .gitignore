@@ -42,3 +42,6 @@ cookies-*.txt
 deployment/backups/
 *.dump
 *.pgdump
+
+# Graphify code graph artifacts
+.graphify/
