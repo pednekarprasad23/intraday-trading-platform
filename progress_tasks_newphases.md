@@ -60,7 +60,7 @@ The preceding session recorded one recovered exact Dhan NIFTY 2026-11-09 26000 C
 - `apps/api/tests/test_historical.py` - Add comprehensive API tests (326 lines)
 - `apps/api/alembic/versions/20261108090000_historical_instrument_metadata.py` - Migration
 
-**Pending:** Run pytest to verify implementation. Create frontend branch for P1-C/P1-D.
+**Pending:** Run pytest to verify implementation.
 
 ## Phase 2 — Verified live-index dashboard
 
@@ -172,3 +172,4 @@ For each phase, append:
 
 - **2026-11-08:** Created the two requested new roadmap/ledger files because neither filename existed in the current workspace. Defined independent parallel streams within every phase and mandatory final integration, tests, build, smoke verification, documentation, commit, and push stages. This update changes documentation only; no build, commit, push, runtime validation, or order submission was performed.
 - **2026-11-08 (Phase 1):** Updated P1-A to Partial - backend API enhanced with instrument metadata, tests written. Updated P1-B to Done - metadata contract implemented. Created skills for historical-api-test. Remote branch `phase1/historical-api` pushed with commit `528dc8b`.
+- **2026-11-08 (Phase 1):** P1-C Done - Built HistoricalView component with native canvas candlestick and volume charts, session coverage filters, pagination controls, and accessible table view. TypeScript build successful. Commit `bfca998` pushed to main.
