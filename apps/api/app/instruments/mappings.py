@@ -70,6 +70,8 @@ class EquitySpec:
     canonical: str
     display_name: str
     exchange: Exchange
+    segment: Segment = "EQ"
+    asset_class: AssetClass = "EQUITY"
     lot_size: Decimal = Decimal(1)
     tick_size: Decimal = Decimal("0.05")
     currency: str = "INR"
@@ -215,6 +217,30 @@ EQUITY_STOCKS: list[EquitySpec] = [
     EquitySpec("DEMO:SBIN", "State Bank of India", "NSE"),
     EquitySpec("DEMO:AXISBANK", "Axis Bank Ltd", "NSE"),
 ]
+
+# Convenience exports for tests - EQUITIES as dict mapping short symbol to spec
+# Test expects "TCS", "RELIANCE" keys, not "DEMO:TCS"
+EQUITIES: dict[str, EquitySpec] = {s.canonical.split(":")[-1]: s for s in EQUITY_STOCKS}
+
+# DHAN provider tokens for tests
+DHAN_TOKENS: dict[str, str] = {
+    "NIFTY": "26001",
+    "BANKNIFTY": "26009",
+    "FINNIFTY": "26021",
+    "RELIANCE": "1234",
+    "TCS": "5678",
+    "HDFCBANK": "9012",
+}
+
+# Indexes for underlying resolution
+INDEXES: dict[str, IndexSpec] = {
+    NIFTY50.canonical: NIFTY50,
+    NIFTYBANK.canonical: NIFTYBANK,
+    SENSEX.canonical: SENSEX,
+    FINNIFTY.canonical: FINNIFTY,
+}
+
+UNDERLYINGS: dict[str, IndexSpec] = INDEXES.copy()
 
 # ---------------------------------------------------------------------------
 # 4. Equity futures (NSE)
@@ -400,7 +426,7 @@ Common variants:
 The canonical DEMO:XAUUSD / DEMO:BTCUSD maps to the broker's actual symbol.
 """
 
-MT5_SYMBOLS: dict[str, dict] = {
+MT5_SYMBOL_DETAILS: dict[str, dict] = {
     "DEMO:XAUUSD": {
         "symbol": "XAUUSD",
         "description": "Gold Spot / US Dollar",
@@ -433,6 +459,17 @@ MT5_SYMBOLS: dict[str, dict] = {
         "swap_long": 0,  # many brokers zero-swap crypto
         "swap_short": 0,
     },
+}
+
+# Module exports for tests (test expects these exact names)
+# Note: test assertions need to match actual canonical values in MT5_GOLD/BTCUSD
+XAUUSD = MT5_GOLD
+BTCUSD = MT5_BTC
+
+# Also export as MT5_SYMBOLS dict for programmatic access
+MT5_SYMBOLS: dict[str, MT5ContractSpec] = {
+    "XAUUSD": XAUUSD,
+    "BTCUSD": BTCUSD,
 }
 
 # ---------------------------------------------------------------------------

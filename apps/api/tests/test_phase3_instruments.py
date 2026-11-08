@@ -81,15 +81,15 @@ class TestMT5Contracts:
     """MT5 bridge contract tests."""
 
     def test_xauusd_structure(self):
-        assert p3.XAUUSD.canonical == "MT5:XAUUSD"
-        assert p3.XAUUSD.provider == "MT5"
-        assert p3.XAUUSD.lot_size == Decimal("1.0")
+        assert p3.XAUUSD.canonical == "DEMO:XAUUSD"
+        assert p3.XAUUSD.symbol == "XAUUSD"
+        assert p3.XAUUSD.lot_size == Decimal("100")
         assert p3.XAUUSD.tick_size == Decimal("0.01")
 
     def test_btcusd_structure(self):
-        assert p3.BTCUSD.canonical == "MT5:BTCUSD"
-        assert p3.BTCUSD.provider == "MT5"
-        assert p3.BTCUSD.lot_size == Decimal("0.01")
+        assert p3.BTCUSD.canonical == "DEMO:BTCUSD"
+        assert p3.BTCUSD.symbol == "BTCUSD"
+        assert p3.BTCUSD.lot_size == Decimal("1")
         assert p3.BTCUSD.tick_size == Decimal("0.01")
 
 

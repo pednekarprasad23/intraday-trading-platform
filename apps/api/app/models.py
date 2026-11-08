@@ -59,6 +59,11 @@ class Instrument(Base):
     execution_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     metadata_source: Mapped[str] = mapped_column(String(100), default="DEMO_FIXTURE")
     is_demo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # Relationship to underlying instrument
+    underlying: Mapped["Instrument | None"] = relationship(
+        remote_side="Instrument.id",
+        backref="underlying_instruments",
+    )
     # P1-B: Relationship to historical partitions
     partitions: Mapped[list["HistoricalPartition"]] = relationship(
         back_populates="instrument"
