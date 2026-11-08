@@ -11,7 +11,7 @@ from app.auth import require_user
 from app.config import get_settings
 from app.database import get_db
 from app.historical.reader import read_sessions
-from app.models import HistoricalGap, HistoricalImportJob, HistoricalPartition
+from app.models import HistoricalGap, HistoricalImportJob, HistoricalPartition, Instrument
 
 router = APIRouter(prefix="/api/v1/historical", dependencies=[Depends(require_user)])
 
@@ -65,6 +65,11 @@ def partitions(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
+    """List historical partitions with instrument metadata.
+
+    P1-B: Returns instrument metadata from denormalized fields in HistoricalPartition
+    table for efficient querying. Fields are populated when partitions are created.
+    """
     total = db.scalar(select(func.count()).select_from(HistoricalPartition))
     rows = db.scalars(
         select(HistoricalPartition)
@@ -83,6 +88,12 @@ def partitions(
                 session_date=row.session_date,
                 checksum_sha256=row.checksum_sha256,
                 row_count=row.row_count,
+                # P1-B: Include instrument metadata (denormalized for performance)
+                instrument_canonical_symbol=row.instrument_canonical_symbol,
+                instrument_display_name=row.instrument_display_name,
+                underlying_canonical_symbol=row.underlying_canonical_symbol,
+                option_type=row.option_type,
+                strike_price=row.strike_price,
             )
             for row in rows
         ],
@@ -96,6 +107,11 @@ def partition_candles(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
+    """Read verified candle data for a partition.
+
+    P1-B: Includes instrument metadata in response for client-side display.
+    Metadata is denormalized in HistoricalPartition table for efficient access.
+    """
     partition = db.get(HistoricalPartition, partition_id)
     if partition is None:
         raise HTTPException(status_code=404, detail="Partition not found")
@@ -118,6 +134,12 @@ def partition_candles(
         "timeframe": partition.timeframe,
         "session_date": partition.session_date,
         "checksum_sha256": partition.checksum_sha256,
+        # P1-B: Include instrument metadata in candle response
+        "instrument_canonical_symbol": partition.instrument_canonical_symbol,
+        "instrument_display_name": partition.instrument_display_name,
+        "underlying_canonical_symbol": partition.underlying_canonical_symbol,
+        "option_type": partition.option_type,
+        "strike_price": partition.strike_price,
         "total": len(session.bars),
         "limit": limit,
         "offset": offset,
