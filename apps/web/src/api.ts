@@ -6,6 +6,11 @@ export interface ResearchReport { id: string; kind: 'BACKTEST' | 'WALK_FORWARD';
 export interface ResearchReportDetail extends ResearchReport { simulation_config: Record<string, unknown>; strategy_config: Record<string, unknown>; sources: unknown[]; trade_summary?: unknown[]; event_summary?: unknown[]; folds?: unknown[] }
 export interface ResearchEvaluation { id: string; decision_time: string | null; instrument_id: string; direction: string; quality: string; reasons: string[]; provider: string; demo: boolean; partition_sha256: string; strategy_id: string; label: string }
 export interface ScoreComponent { performance: number; risk: number; data_quality: number; structure_alignment: number }
+export interface ProjectStatus { value: 'CREATED' | 'STARTING' | 'RUNNING' | 'PAUSED' | 'STOPPING' | 'STOPPED' | 'ERROR' | 'ARCHIVED'; }
+export interface ProjectRunStatus { value: 'QUEUED' | 'STARTING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'; }
+export interface Project { id: string; name: string; slug: string; description: string | null; config: any | null; runtime_status: string | null; runtime_instance_id: string | null; heartbeat_at: string | null; last_error: string | null; strategies: Array<{id: string; strategy_id: string; role: string; priority: number}>; runs: Array<{id: string; strategy_version_id: string; status: string; parameters_sha256: string | null; result_summary: {net_pnl: string; trade_count: string; win_rate: string; profit_factor: string; execution_status: string} | null}>; created_at: string; updated_at: string; }
+export interface ProjectRun { id: string; project_id: string; strategy_version_id: string; status: string; parameters_snapshot: any; parameters_sha256: string; requested_by: string | null; runtime_instance_id: string | null; error_code: string | null; error_message: string | null; result_summary: {net_pnl: string; trade_count: string; win_rate: string; profit_factor: string; execution_status: string} | null; created_at: string; started_at: string | null; finished_at: string | null; heartbeat_at: string | null; }
+export interface KillSwitchStatus { name: string; state: 'ARMED' | 'TRIGGERED'; triggered_by: string | null; triggered_at: string | null; reason: string | null; reset_by: string | null; reset_at: string | null; auto_triggered: boolean; created_at: string; updated_at: string; }
 export interface CandidateRanking { candidate_id: string; strategy_id: string; strategy_version: number; instrument_id: string; session_date: string; composite_score: number; score_breakdown: ScoreComponent; sub_scores: Record<string, number>; is_rejected: boolean; rejection_reasons: string[]; ranking_version: number; commentary: string; evidence: Record<string, unknown> }
 export interface RankingsPage extends Page<CandidateRanking> { limit: number; offset: number }
 export interface Page<T> { total: number; items: T[] }
@@ -148,6 +153,17 @@ export const research = {
     return api<{ total: number; items: CandidateRanking[] }>(`/research/rankings/latest?${params}`);
   },
   detail: (kind: ResearchReport['kind'], id: string) => api<ResearchReportDetail>(`/research/${kind === 'BACKTEST' ? 'backtests' : 'walk-forwards'}/${encodeURIComponent(id)}`),
+};
+
+export const projects = {
+  list: (limit = 50, offset = 0) => api<{ total: number; items: Project[] }>(`/api/v1/projects?limit=${limit}&offset=${offset}`),
+  get: (projectId: string) => api<Project>(`/api/v1/projects/${encodeURIComponent(projectId)}`),
+  start: (projectId: string) => api<Project>(`/api/v1/projects/${encodeURIComponent(projectId)}/start`, { method: 'POST' }),
+  stop: (projectId: string) => api<Project>(`/api/v1/projects/${encodeURIComponent(projectId)}/stop`, { method: 'POST' }),
+  archive: (projectId: string) => api<Project>(`/api/v1/projects/${encodeURIComponent(projectId)}/archive`, { method: 'POST' }),
+  runs: (projectId: string, limit = 50, offset = 0) => api<{ total: number; items: ProjectRun[] }>(`/api/v1/projects/${encodeURIComponent(projectId)}/runs?limit=${limit}&offset=${offset}`),
+  submit: (projectId: string, body: { strategy_version_id: string; parameters?: any }) => api<ProjectRun>(`/api/v1/projects/${encodeURIComponent(projectId)}/runs`, { method: 'POST', body: JSON.stringify(body) }),
+  cancel: (projectId: string, runId: string) => api<ProjectRun>(`/api/v1/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/cancel`, { method: 'POST' }),
 };
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/v1${path}`, { ...init, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...init?.headers } });

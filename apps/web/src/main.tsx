@@ -30,6 +30,7 @@ const navGroups: NavGroup[] = [
     category: 'OPERATIONS',
     items: [
       { key: 'dashboard', name: 'Dashboard', note: 'Command & control overview' },
+      { key: 'projects', name: 'Projects', note: 'Runtime control-plane' },
       { key: 'paper', name: 'Paper Trading', note: 'Simulated ledger & orders', badge: 'PAPER' },
       { key: 'orders', name: 'Orders & Lifecycle', note: 'Execution stream & details' },
       { key: 'signals', name: 'Signals Stream', note: 'Persistent decision signals', badge: 'V2.3' },
@@ -252,6 +253,7 @@ export function App() {
             {view === 'instruments' && <InstrumentsView />}
             {view === 'paper' && <PaperTradingView />}
             {view === 'reconcile' && <ReconciliationView />}
+            {view === 'projects' && <ProjectsView />}
             {view === 'system' && (
               <section id="status" className="workspace-panel">
                 <div className="section-heading">
