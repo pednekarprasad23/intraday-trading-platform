@@ -18,9 +18,11 @@ test.describe('Home Page V2.1 Operations Cockpit', () => {
 
   test('navigation should be functional', async ({ page }) => {
     const navLinks = page.locator('aside.sidebar button.nav-item');
-    await expect(navLinks).toHaveCount(11);
+    await expect(navLinks).toHaveCount(12);
 
     await expect(page.locator('aside.sidebar button.nav-item', { hasText: 'Dashboard' })).toBeVisible();
+    await expect(page.locator('aside.sidebar button.nav-item', { hasText: 'Orders & Lifecycle' })).toBeVisible();
+    await expect(page.locator('aside.sidebar button.nav-item', { hasText: 'Signals Stream' })).toBeVisible();
     await expect(page.locator('aside.sidebar button.nav-item', { hasText: 'Research' })).toBeVisible();
     await expect(page.locator('aside.sidebar button.nav-item', { hasText: 'Historical Data' })).toBeVisible();
     await expect(page.locator('aside.sidebar button.nav-item', { hasText: 'Paper Trading' })).toBeVisible();
