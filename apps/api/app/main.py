@@ -23,6 +23,7 @@ from app.paper_trading.demo import router as demo_router
 from app.monitoring.routes import router as monitoring_router
 from app.projects.routes import router as projects_router
 from app.discovery.routes import router as discovery_router
+from app.research.opportunities_routes import router as opportunities_router
 from sqlalchemy import func
 
 settings = get_settings()
@@ -45,6 +46,7 @@ app.include_router(demo_router)  # Phase 5: Demo order testing
 app.include_router(monitoring_router)  # Phase 7: Monitoring endpoints
 app.include_router(projects_router)  # V2.6 Phase 2: Project control-plane
 app.include_router(discovery_router)  # V2.9B: Discovery option chains & universes
+app.include_router(opportunities_router)  # V2.11: Opportunity Portal Intelligence API
 
 
 @app.middleware("http")

@@ -142,6 +142,91 @@ export const research = {
   detail: (kind: ResearchReport['kind'], id: string) => api<ResearchReportDetail>(`/research/${kind === 'BACKTEST' ? 'backtests' : 'walk-forwards'}/${encodeURIComponent(id)}`),
 };
 
+export interface OpportunityItem {
+  candidate_id: string;
+  contract: string;
+  underlying: string;
+  option_type: string;
+  strike: number;
+  expiry: string;
+  last_price: string;
+  strategy_id: string;
+  strategy_version: number;
+  instrument_id: string;
+  session_date: string;
+  composite_score: number;
+  completeness: string;
+  ranking_eligible: boolean;
+  sub_scores: {
+    liquidity_quality: number;
+    iv_snapshot: number;
+    oi_participation: number;
+    greeks_snapshot: number;
+  };
+  score_breakdown: Record<string, unknown>;
+  explainability: {
+    title: string;
+    components: { name: string; weight: string; contribution: string; evidence: string }[];
+    limitations: string;
+  };
+  historical_outcome: {
+    original_timestamp: string;
+    original_score: number;
+    future_evaluation_status: string;
+    objective_price_change: string;
+    classification: string;
+    coverage: string;
+  };
+  status: string;
+  updated_at: string;
+}
+
+export interface OpportunitiesSummary {
+  underlying: string;
+  spot: string;
+  expiry: string;
+  last_refresh: string;
+  candidates_count: number;
+  ranking_eligible_count: number;
+  data_coverage: string;
+  system_state: string;
+  execution_mode: string;
+}
+
+export interface CalibrationData {
+  sample_count: number;
+  coverage_percentage: number;
+  score_bands: Record<string, { count: number; favorable_outcome_pct: number }>;
+  classification_distributions: Record<string, number>;
+  warnings: string[];
+}
+
+export interface MissedRecord {
+  opportunity_id: string;
+  candidate_id: string;
+  evaluated_at: string;
+  overall_score: number;
+  completeness: string;
+  miss_reason: string;
+  objective_future_outcome: string;
+  classification: string;
+  notes: string;
+}
+
+export const opportunities = {
+  summary: () => api<OpportunitiesSummary>('/opportunities/summary'),
+  list: (params?: { expiry?: string; option_type?: string; min_score?: number; ranking_eligible_only?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.expiry) q.set('expiry', params.expiry);
+    if (params?.option_type) q.set('option_type', params.option_type);
+    if (params?.min_score) q.set('min_score', String(params.min_score));
+    if (params?.ranking_eligible_only) q.set('ranking_eligible_only', 'true');
+    return api<{ total: number; limit: number; offset: number; items: OpportunityItem[] }>(`/opportunities?${q}`);
+  },
+  calibration: () => api<CalibrationData>('/opportunities/calibration'),
+  missed: () => api<{ total_missed_analyzed: number; items: MissedRecord[] }>('/opportunities/missed'),
+};
+
 export const projects = {
   list: (limit = 50, offset = 0) => api<{ total: number; items: Project[] }>(`/api/v1/projects?limit=${limit}&offset=${offset}`),
   get: (projectId: string) => api<Project>(`/api/v1/projects/${encodeURIComponent(projectId)}`),
