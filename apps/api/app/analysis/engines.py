@@ -116,6 +116,9 @@ class LiquidityQualityEngine(AnalysisEngine):
         evidence: dict[str, Any] = {}
         metrics: dict[str, Any] = {}
 
+        # Store candidate_id for _generate_analysis_id
+        object.__setattr__(self, "_candidate_id", candidate.candidate_id)
+
         # Extract normalized values safely
         volume = contract.volume or 0
         open_interest = contract.open_interest or 0
@@ -170,8 +173,10 @@ class LiquidityQualityEngine(AnalysisEngine):
         )
 
     def _generate_analysis_id(self) -> str:
-        # Deterministic: reuse the candidate's existing mechanism
-        return getattr(self.candidate, "candidate_id", "unknown")
+        # Deterministic: use the candidate_id from the candidate object
+        # This is set during analyze() via the AnalysisContext
+        candidate_id = getattr(self, "_candidate_id", "unknown")
+        return candidate_id
 
     def __repr__(self) -> str:  # pragma: no cover - debug
         return f"<{self.engine_id} v{self.engine_version}>"

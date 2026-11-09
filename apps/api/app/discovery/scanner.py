@@ -92,6 +92,58 @@ class MarketCandidate:
         self.detected_at = utcnow()
         self.candidate_id = self._generate_candidate_id()
 
+    @property
+    def canonical_contract(self) -> NormalizedOptionContract:
+        """Reconstruct normalized contract from canonical_contract_id components.
+
+        Parses the canonical_contract_id (format: EXCHANGE:UNDERLYING:STRIKE:TYPE)
+        and rebuilds a NormalizedOptionContract for downstream consumption.
+        """
+        from app.discovery.provider import NormalizedOptionContract
+
+        # Parse canonical_contract_id: typically "NFO:NIFTY:24000:PUT" or similar
+        parts = (self.canonical_contract_id or "").split(":")
+        if len(parts) >= 3:
+            exchange = parts[0] if parts[0] else self.exchange
+            underlying = parts[1] if len(parts) > 1 else self.underlying
+            strike_str = parts[2]
+            option_type = parts[3] if len(parts) > 3 else (self.option_type or "PUT")
+            try:
+                strike = Decimal(strike_str) if strike_str else None
+            except Exception:
+                strike = None
+        else:
+            exchange = self.exchange
+            underlying = self.underlying
+            strike = self.strike
+            option_type = self.option_type or "PUT"
+
+        return NormalizedOptionContract(
+            market=self.market,
+            exchange=exchange,
+            underlying=underlying,
+            instrument_type=self.instrument_type,
+            expiry=self.expiry or (parts[4] if len(parts) > 4 else None),
+            strike=strike,
+            option_type=option_type,
+            canonical_contract_id=self.canonical_contract_id,
+            provider=self.provider,
+            provider_instrument_id=self.evidence.get("provider_instrument_id"),
+            last_price=self.evidence.get("last_price"),
+            volume=self.evidence.get("volume", 0),
+            open_interest=self.evidence.get("open_interest", 0),
+            bid_price=self.evidence.get("bid_price"),
+            ask_price=self.evidence.get("ask_price"),
+            implied_volatility=self.evidence.get("implied_volatility"),
+            delta=self.evidence.get("delta"),
+            gamma=self.evidence.get("gamma"),
+            theta=self.evidence.get("theta"),
+            vega=self.evidence.get("vega"),
+            lot_size=self.evidence.get("lot_size", 25),
+            tick_size=Decimal(str(self.evidence.get("tick_size", "0.05"))),
+            snapshot_at=self.snapshot_at,
+        )
+
     def _generate_candidate_id(self) -> str:
         """Generate deterministic candidate ID for idempotency and duplicate prevention.
 
@@ -143,10 +195,13 @@ class ReferenceTestScanner:
                     strike=contract.strike,
                     option_type=contract.option_type,
                     evidence={
-                        "last_price": str(contract.last_price),
+                        "last_price": Decimal(str(contract.last_price)),
                         "volume": contract.volume,
                         "open_interest": contract.open_interest,
-                        "implied_volatility": str(contract.implied_volatility) if contract.implied_volatility else None,
+                        "bid_price": contract.bid_price,  # Already Decimal from contract
+                        "ask_price": contract.ask_price,    # Already Decimal from contract
+                        "implied_volatility": Decimal(str(contract.implied_volatility)) if contract.implied_volatility else None,
+                        "delta": Decimal(str(contract.delta)) if contract.delta is not None else None,
                     },
                     provider=contract.provider,
                 )
