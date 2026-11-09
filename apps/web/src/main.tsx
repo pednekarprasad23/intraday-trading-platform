@@ -16,6 +16,7 @@ import { OrdersView } from './OrdersView';
 import { SignalsView } from './SignalsView';
 import { PositionsView } from './PositionsView';
 import { ReconciliationView } from './ReconciliationView';
+import { RiskOperationsView } from './RiskOperationsView';
 
 type View = 'dashboard' | 'research' | 'market' | 'instruments' | 'system' | 'paper' | 'historical' | 'orders' | 'positions' | 'risk' | 'reconcile' | 'signals';
 
@@ -247,15 +248,7 @@ export function App() {
                 <CoverageView /><Mt5View /><AngelOneView />
               </>
             )}
-            {view === 'risk' && (
-              <>
-                <div className="notice-inline">
-                  Connector data can be absent or stale. Quotes and terminal snapshots are not execution instructions.
-                </div>
-                <PaperTradingView />
-              </>
-            )}
-            {view === 'historical' && <HistoricalView />}
+            {view === 'risk' && <RiskOperationsView />}            {view === 'historical' && <HistoricalView />}
             {view === 'instruments' && <InstrumentsView />}
             {view === 'paper' && <PaperTradingView />}
             {view === 'reconcile' && <ReconciliationView />}
