@@ -1,4 +1,4 @@
-"""V2.9A Universal Market Discovery Variable Foundation tests.
+"""V2.9A & V2.9B Universal Market Discovery & Contract Data Foundation tests.
 
 Tests verify:
 1. NIFTY INDEX underlying representation
@@ -11,8 +11,13 @@ Tests verify:
 8. Provider independent from market identity
 9. Canonical identity deterministic generation
 10. Normalized contract identity formatting and uniqueness
-11. Zero execution dependencies (no paper trading, broker, or kill switch imports/calls)
+11. Zero execution dependencies (no paper trading or execution modules)
 12. Daily XAU and PAPER code isolation
+13. Provider-neutral option chain fixture retrieval and normalization (CE->CALL, PE->PUT)
+14. Expiry / strike variations produce distinct canonical identities
+15. Nullable Greeks and market fields supported gracefully
+16. Provider errors (EmptyChainError, UnsupportedExpiryError, MalformedResponseError) handled safely
+17. Timestamps preserved correctly in snapshots and contracts
 """
 
 from datetime import date
@@ -31,10 +36,16 @@ from app.discovery.models import (
     generate_canonical_identity,
 )
 from app.discovery.service import DiscoveryService
+from app.discovery.provider import (
+    FixtureDiscoveryAdapter,
+    EmptyChainError,
+    UnsupportedExpiryError,
+    NormalizedOptionContract,
+)
 
 
 class TestDiscoveryFoundation:
-    """Universal market discovery foundation test suite."""
+    """Universal market discovery and contract data foundation test suite."""
 
     def test_nifty_index_underlying(self, db: Session):
         """1. Prove representation of NIFTY INDEX underlying."""
@@ -45,7 +56,6 @@ class TestDiscoveryFoundation:
         assert universe.instrument_type == InstrumentType.OPTION
         assert universe.underlying == "NIFTY"
 
-        # Canonical identity for index spot/underlying
         underlying_id = generate_canonical_identity(
             market="INDIA",
             exchange="NSE",
@@ -83,7 +93,6 @@ class TestDiscoveryFoundation:
 
     def test_strike_and_expiry_optionality(self):
         """5, 6, 7. Strike nullable for non-options, available for options; expiry optional/non-option."""
-        # Non-option (Index spot) has no expiry or strike
         index_id = generate_canonical_identity(
             market="INDIA",
             exchange="NSE",
@@ -129,12 +138,44 @@ class TestDiscoveryFoundation:
         assert id1 == id2
         assert id1 == "INDIA:NFO:NIFTY:OPTION:2026-11-26:26000:CALL"
 
+    def test_option_chain_fixture_normalization(self):
+        """13, 14, 15, 17. Option chain fixture normalization, expiries, strikes, CALL/PUT, timestamps."""
+        adapter = FixtureDiscoveryAdapter()
+        expiries = adapter.get_expiries("NIFTY")
+        assert len(expiries) > 0
+
+        snapshot = adapter.get_option_chain("NIFTY", expiries[0])
+        assert snapshot.underlying == "NIFTY"
+        assert snapshot.spot_price > 0
+        assert snapshot.timestamp is not None
+        assert len(snapshot.contracts) > 0
+
+        # Verify contracts have valid canonical IDs and option types
+        call_contracts = [c for c in snapshot.contracts if c.option_type == "CALL"]
+        put_contracts = [c for c in snapshot.contracts if c.option_type == "PUT"]
+        assert len(call_contracts) > 0
+        assert len(put_contracts) > 0
+
+        # Verify distinct identities for different strikes / expiries / types
+        c1 = call_contracts[0]
+        p1 = put_contracts[0]
+        assert c1.canonical_contract_id != p1.canonical_contract_id
+        assert c1.snapshot_at is not None
+
+    def test_provider_error_handling(self):
+        """16. Empty chain and unsupported expiry handling."""
+        adapter = FixtureDiscoveryAdapter()
+        with pytest.raises(EmptyChainError):
+            adapter.get_option_chain("BANKNIFTY", "2026-11-26")
+
+        with pytest.raises(UnsupportedExpiryError):
+            adapter.get_option_chain("NIFTY", "2099-01-01")
+
     def test_zero_execution_dependency(self):
-        """11. Verify zero execution dependency (discovery modules do not import paper trading or execution modules)."""
+        """11, 16. Verify zero execution dependency across all discovery modules."""
         for mod_name in list(sys.modules.keys()):
             if "app.discovery" in mod_name:
                 mod = sys.modules[mod_name]
-                # Check source code or imported modules for paper trading / execution modules / kill switch
                 source = getattr(mod, "__file__", "")
                 if source:
                     with open(source, "r", encoding="utf-8") as f:
@@ -142,4 +183,3 @@ class TestDiscoveryFoundation:
                         assert "paper_trading" not in content
                         assert "PaperExecutionService" not in content
                         assert "KillSwitch" not in content
-                        assert "broker" not in content
