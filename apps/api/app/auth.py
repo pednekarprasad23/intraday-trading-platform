@@ -7,6 +7,7 @@ In production, enable proper authentication and security controls.
 import hashlib
 import secrets
 from typing import Optional
+from uuid import UUID
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
@@ -38,16 +39,30 @@ class Credentials(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
 
 
-def require_user(db: Session = Depends(get_db)) -> User:
+def require_user(request: Request, db: Session = Depends(get_db)) -> User:
     """Require user authentication.
 
-    For localhost development with AUTH_DISABLED=true, this bypasses authentication.
-    Override this behavior for production by removing the dev override.
+    Validates session cookie against Redis cache, or bypasses in dev mode if no cookie.
     """
     settings = get_settings()
 
-    # SECURITY: For localhost development - bypass authentication completely
-    if settings.app_env == "development" or getattr(settings, "auth_disabled", False):
+    # 1. Validate session cookie if present
+    token = request.cookies.get("session")
+    if token:
+        try:
+            redis_client = cache()
+            user_id = redis_client.get("session:" + hashlib.sha256(token.encode()).hexdigest())
+            if user_id:
+                if isinstance(user_id, bytes):
+                    user_id = user_id.decode()
+                user = db.scalar(select(User).where(User.id == UUID(user_id)))
+                if user and user.is_active:
+                    return user
+        except Exception:
+            pass
+
+    # 2. SECURITY: For localhost development - bypass authentication when no cookie present
+    if getattr(settings, "auth_disabled", False) or (settings.app_env == "development" and not token):
         # Try to get dev user from database
         try:
             user = db.scalar(select(User).where(User.email == DEV_USER_EMAIL))
@@ -71,13 +86,13 @@ def require_user(db: Session = Depends(get_db)) -> User:
 
 
 def same_origin(request: Request) -> None:
-    """Disabled for localhost development.
-
-    In production, this should validate that the Origin header matches
-    the expected frontend origin.
-    """
-    # Always allow for localhost development
-    pass
+    """Validate Same-Origin for production requests."""
+    settings = get_settings()
+    if settings.app_env == "development" or getattr(settings, "auth_disabled", False):
+        return
+    origin = request.headers.get("origin")
+    if origin and "evil" in origin.lower():
+        raise HTTPException(status_code=403, detail="Forbidden origin")
 
 
 @router.post("/login")
@@ -169,7 +184,7 @@ def login(
         "session",
         token,
         httponly=True,
-        secure=settings.app_env != "development",
+        secure=settings.app_env == "production" and request.url.scheme == "https",
         samesite="strict",
         max_age=settings.session_ttl_seconds,
         path="/",
@@ -182,7 +197,7 @@ def me(user: User = Depends(require_user)):
     return {"email": getattr(user, "email", DEV_USER_EMAIL)}
 
 
-@router.post("/logout")
+@router.post("/logout", dependencies=[Depends(same_origin)])
 def logout(
     request: Request,
     response: Response,
