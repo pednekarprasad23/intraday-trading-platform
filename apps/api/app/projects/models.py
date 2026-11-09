@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models import Base, utcnow
+from app.models import Base, utcnow, StrategyVersion
 
 
 class ProjectStatus(str, Enum):

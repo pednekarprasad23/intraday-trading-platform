@@ -43,7 +43,7 @@ def upgrade():
         sa.Column("provider_instrument_id", sa.String(100), nullable=True),
         sa.Column("scanner_version", sa.String(50), nullable=True),
         sa.Column("analysis_engine_versions", sa.JSON(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.UniqueConstraint("canonical_contract_id", "observed_at", name="uq_historical_observation_point_in_time"),
     )
 

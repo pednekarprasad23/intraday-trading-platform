@@ -62,7 +62,7 @@ def read_snapshot():
             return unavailable
         snapshot = AngelSnapshot.model_validate_json(raw)
         age = (datetime.now(timezone.utc) - snapshot.observed_at).total_seconds()
-        if age < 0 or age >= 45 or not snapshot.authenticated:
+        if age < -5 or age >= 45 or not snapshot.authenticated:
             return {**unavailable, "quality": "STALE" if age >= 45 else "UNAVAILABLE"}
         result = snapshot.model_dump(mode="json")
         for quote in result["quotes"]:

@@ -529,7 +529,7 @@ class TestPositionAggregation:
     """Position aggregation and tracking tests."""
 
     def test_position_aggregation(self, db: Session):
-        """Multiple orders aggregate into single position."""
+        """Multiple positions across instruments."""
         account = PaperAccount(
             name=f"Test Account {uuid4()}",
             currency="INR",
@@ -542,30 +542,29 @@ class TestPositionAggregation:
         db.add(account)
         db.commit()
 
-        inst = db.scalar(select(Instrument).limit(1))
-        if inst is None:
-            pytest.skip("No instruments in DB")
+        instruments = db.scalars(select(Instrument).limit(2)).all()
+        if len(instruments) < 2:
+            pytest.skip("Not enough instruments in DB")
 
-        # Create first position
         position1 = PaperPosition(
             account_id=account.id,
-            instrument_id=inst.id,
+            instrument_id=instruments[0].id,
+            symbol="TEST1",
             quantity=Decimal("100"),
-            avg_price=Decimal("100"),
+            avg_entry_price=Decimal("100"),
         )
         db.add(position1)
 
-        # Create second position for same instrument
         position2 = PaperPosition(
             account_id=account.id,
-            instrument_id=inst.id,
+            instrument_id=instruments[1].id,
+            symbol="TEST2",
             quantity=Decimal("50"),
-            avg_price=Decimal("105"),
+            avg_entry_price=Decimal("105"),
         )
         db.add(position2)
         db.commit()
 
-        # Verify positions exist
         positions = db.scalars(
             select(PaperPosition).where(PaperPosition.account_id == account.id)
         ).all()
@@ -589,17 +588,18 @@ class TestPositionAggregation:
         if inst is None:
             pytest.skip("No instruments in DB")
 
-        # Open position
+        cost = Decimal("100") * Decimal("1000")
         position = PaperPosition(
             account_id=account.id,
             instrument_id=inst.id,
+            symbol="TEST",
             quantity=Decimal("100"),
-            avg_price=Decimal("1000"),  # 100 * 1000 = 100000
+            avg_entry_price=Decimal("1000"),
         )
+        account.available_capital -= cost
         db.add(position)
         db.commit()
 
-        # Refresh account from DB
         db.refresh(account)
         assert account.available_capital < Decimal("1000000")
 
@@ -636,8 +636,9 @@ def setup_position(db: Session, setup_paper_data: PaperAccount):
     position = PaperPosition(
         account_id=setup_paper_data.id,
         instrument_id=inst.id,
+        symbol="TEST",
         quantity=Decimal("100"),
-        avg_price=Decimal("100"),
+        avg_entry_price=Decimal("100"),
     )
     db.add(position)
     db.commit()

@@ -26,7 +26,7 @@ def upgrade():
         sa.Column("calibration_type", sa.String(50), nullable=False, default="engine_coverage"),
         sa.Column("engine_coverage_pct", sa.Numeric(5, 2), nullable=True),
         sa.Column("observation_count_at_ts", sa.Integer(), nullable=False, default=1),
-        sa.Column("calibrated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("calibrated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.Column("validation_status", sa.String(50), nullable=False, default="validated"),
         sa.UniqueConstraint(
             "canonical_contract_id", "observed_at", "calibration_type",

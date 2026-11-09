@@ -156,7 +156,7 @@ class PaperOrder(Base):
     signal_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("paper_signals.id", ondelete="SET NULL"), nullable=True, unique=True
     )
-    idempotency_key: Mapped[str] = mapped_column(String(64))  # client-provided
+    idempotency_key: Mapped[str | None] = mapped_column(String(64), nullable=True, default=lambda: str(uuid4()))
     side: Mapped[str] = mapped_column(String(4))
     order_type: Mapped[str] = mapped_column(String(10))
     quantity: Mapped[Decimal] = mapped_column(Numeric(18, 4))

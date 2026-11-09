@@ -16,27 +16,27 @@ depends_on = None
 def upgrade():
     # Add strategy version association and config snapshots to research reports (backtest_reports, walk_forward_reports)
     for table in ("backtest_reports", "walk_forward_reports"):
-        op.add_column(
-            table,
-            sa.Column(
-                "strategy_version_id",
-                sa.Uuid(),
-                sa.ForeignKey("strategy_versions.id"),
-                nullable=True,
-            ),
-        )
-        op.add_column(
-            table,
-            sa.Column("config_snapshot", sa.JSON(), nullable=True),
-        )
-        op.add_column(
-            table,
-            sa.Column("config_sha256", sa.String(64), nullable=True),
-        )
+        with op.batch_alter_table(table, schema=None) as batch_op:
+            batch_op.add_column(
+                sa.Column(
+                    "strategy_version_id",
+                    sa.Uuid(),
+                    sa.ForeignKey("strategy_versions.id", name=f"fk_{table}_strategy_version_id"),
+                    nullable=True,
+                )
+            )
+            batch_op.add_column(
+                sa.Column("config_snapshot", sa.JSON(), nullable=True)
+            )
+            batch_op.add_column(
+                sa.Column("config_sha256", sa.String(64), nullable=True)
+            )
 
 
 def downgrade():
     for table in ("walk_forward_reports", "backtest_reports"):
-        op.drop_column(table, "config_sha256")
-        op.drop_column(table, "config_snapshot")
-        op.drop_column(table, "strategy_version_id")
+        with op.batch_alter_table(table, schema=None) as batch_op:
+            batch_op.drop_constraint(f"fk_{table}_strategy_version_id", type_="foreignkey")
+            batch_op.drop_column("config_sha256")
+            batch_op.drop_column("config_snapshot")
+            batch_op.drop_column("strategy_version_id")

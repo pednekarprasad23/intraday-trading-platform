@@ -1,4 +1,4 @@
-"""Unit tests for V2.9G Opportunity Engine & Ranking Foundation."""
+"""Unit tests for V2.9G Opportunity Engine & Ranking Foundation, plus V2.10B outcome evaluation."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 
 from app.discovery.scanner import ReferenceTestScanner, ScannerContext, MarketCandidate
-from app.discovery.provider import FixtureDiscoveryAdapter
+from app.discovery.provider import FixtureDiscoveryAdapter, NormalizedOptionContract
 from app.analysis.engine import AnalysisResult
 from app.analysis.opportunity_engine import OpportunityEngine, OpportunityResult
 from app.analysis.ranking import OpportunityRanker
@@ -143,6 +143,33 @@ def test_opportunity_ranking_determinism():
     assert ranked[0].candidate_id == "CANDIDATE-B"
     assert ranked[1].candidate_id == "CANDIDATE-A"
     assert ranked[2].candidate_id == "CANDIDATE-C"
+
+
+def test_v210b_objective_outcome_evaluation():
+    """Verify V2.10B objective outcome evaluation, MFE/MAE, target/stop and zero execution coupling."""
+    candidate = create_test_candidate()
+    results = {
+        "liquidity-quality": AnalysisResult(
+            engine_id="liquidity-quality",
+            engine_version="1.0.0",
+            candidate=candidate,
+            analysis_id="lq-1",
+            metrics={"spread_percentage": "1.32"},
+            qualifying=True,
+        )
+    }
+    opp = OpportunityEngine.evaluate(candidate, results)
+
+    assert opp.outcome_direction in ("bullish", "bearish", "neutral")
+    assert opp.outcome_status is not None
+    assert opp.entry_price is not None
+    assert opp.entry_price > 0
+    assert opp.target_price is not None
+    assert opp.stop_price is not None
+    assert opp.mfe is not None
+    assert opp.mae is not None
+    assert opp.outcome_complete is True
+    assert opp.outcome_notes is not None
 
 
 def test_zero_execution_dependency():

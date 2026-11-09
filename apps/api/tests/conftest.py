@@ -6,6 +6,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from app.models import Base, User
+import app.projects.models
+import app.paper_trading.models
+import app.discovery.models
+import app.analysis.models
 from app.database import get_db
 from argon2 import PasswordHasher
 

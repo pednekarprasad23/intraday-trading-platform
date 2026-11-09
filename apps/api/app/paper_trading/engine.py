@@ -174,8 +174,19 @@ def check_data_freshness(ctx: RiskContext) -> RiskResult:
     return RiskResult(True)
 
 
-def check_capital(ctx: RiskContext) -> RiskResult:
+def check_capital(ctx_or_account, instrument=None, quantity=None, price=None, side=PaperOrderSide.BUY) -> RiskResult:
     """Check if order size is within available capital."""
+    if isinstance(ctx_or_account, RiskContext):
+        ctx = ctx_or_account
+    else:
+        ctx = RiskContext(
+            account=ctx_or_account,
+            instrument=instrument,
+            quantity=quantity,
+            side=side,
+            order_type=PaperOrderType.MARKET,
+            price=price,
+        )
     if ctx.price is None:
         return RiskResult(False, "Price not determined")
 
@@ -191,8 +202,21 @@ def check_capital(ctx: RiskContext) -> RiskResult:
     return RiskResult(True)
 
 
-def check_position_limit(ctx: RiskContext) -> RiskResult:
+def check_position_limit(ctx_or_account, instrument=None, quantity=None, price=None, side=PaperOrderSide.BUY, current_position_qty=Decimal(0), daily_pnl=Decimal(0)) -> RiskResult:
     """Check if position limit would be exceeded."""
+    if isinstance(ctx_or_account, RiskContext):
+        ctx = ctx_or_account
+    else:
+        ctx = RiskContext(
+            account=ctx_or_account,
+            instrument=instrument,
+            quantity=quantity,
+            side=side,
+            order_type=PaperOrderType.MARKET,
+            price=price,
+            current_position_qty=current_position_qty,
+            daily_pnl=daily_pnl,
+        )
     potential_qty = ctx.quantity
     if ctx.side == PaperOrderSide.SELL:
         potential_qty = -ctx.quantity

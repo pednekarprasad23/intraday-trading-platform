@@ -58,7 +58,22 @@ def test_angel_snapshot_is_protected_and_fails_closed(tmp_path, monkeypatch):
         )
     )
     assert read_snapshot()["quality"] == "UNAVAILABLE"
-    monkeypatch.setattr(settings, "angelone_enabled", True)
+    monkeypatch.setenv("ANGELONE_ENABLED", "true")
+    monkeypatch.setenv("ANGELONE_SNAPSHOT_PATH", str(path))
+    get_settings.cache_clear()
+    now = datetime.now(timezone.utc).isoformat()
+    path.write_text(
+        json.dumps(
+            {
+                "observed_at": now,
+                "provider": "ANGEL_ONE",
+                "authenticated": True,
+                "quotes": [],
+                "errors": [],
+                "orders_available": False,
+            }
+        )
+    )
     assert read_snapshot()["quality"] == "UNVERIFIED"
     data = json.loads(path.read_text())
     data["quotes"] = [

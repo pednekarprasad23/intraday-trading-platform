@@ -34,6 +34,9 @@ class OpportunityResult:
     """Result of opportunity evaluation — market intelligence only.
 
     NOT a trade instruction, order, or execution directive.
+
+    V2.10B: Extended with outcome evaluation fields for objective outcome
+    assessment, while preserving the 0-100 explainable scoring foundation.
     """
 
     def __init__(
@@ -48,6 +51,16 @@ class OpportunityResult:
         completeness: str,
         ranking_eligible: bool,
         notes: Optional[str] = None,
+        # V2.10B: Outcome evaluation fields — market intelligence only, no execution
+        outcome_direction: Optional[str] = None,      # bullish/bearish/neutral
+        outcome_status: Optional[str] = None,         # projected/profitable/loss
+        entry_price: Optional[Decimal] = None,        # recorded entry price
+        target_price: Optional[Decimal] = None,       # assessed target level
+        stop_price: Optional[Decimal] = None,         # assessed stop level
+        mfe: Optional[Decimal] = None,                # max favorable excursion
+        mae: Optional[Decimal] = None,                # max unfavorable excursion
+        outcome_complete: bool = False,               # whether outcome can be determined
+        outcome_notes: Optional[str] = None,          # human-readable explanation
     ):
         self.opportunity_id = opportunity_id
         self.candidate_id = candidate_id
@@ -56,6 +69,19 @@ class OpportunityResult:
         self.overall_score = overall_score
         self.component_scores = component_scores
         self.evidence = evidence
+        self.completeness = completeness
+        self.ranking_eligible = ranking_eligible
+        self.notes = notes
+        # V2.10B outcome fields — market intelligence only
+        self.outcome_direction = outcome_direction
+        self.outcome_status = outcome_status
+        self.entry_price = entry_price
+        self.target_price = target_price
+        self.stop_price = stop_price
+        self.mfe = mfe
+        self.mae = mae
+        self.outcome_complete = outcome_complete
+        self.outcome_notes = outcome_notes
         self.completeness = completeness
         self.ranking_eligible = ranking_eligible
         self.notes = notes
@@ -252,6 +278,54 @@ class OpportunityEngine(AnalysisEngine):
 
         notes = "; ".join(notes_parts) if notes_parts else None
 
+        # V2.10B: Derive objective outcome fields (market intelligence only)
+        outcome_direction = None
+        entry_price = None
+        target_price = None
+        stop_price = None
+        mfe = None
+        mae = None
+        outcome_complete = False
+        outcome_notes = None
+
+        if hasattr(candidate, "option_type") and candidate.option_type:
+            opt_type = str(candidate.option_type).upper()
+            if opt_type in ("CALL", "PUT"):
+                outcome_direction = "bullish" if opt_type == "CALL" else "bearish"
+            else:
+                outcome_direction = "neutral"
+
+        # Try to get contract entry price from candidate or evidence
+        contract = getattr(candidate, "canonical_contract", None)
+        if contract is not None:
+            entry_price = getattr(contract, "last_price", None)
+            if entry_price is not None and entry_price > 0:
+                outcome_complete = True
+                # Objective outcome calculation model (market intelligence only)
+                if outcome_direction == "bullish":
+                    target_price = entry_price * Decimal("1.10")  # +10% target
+                    stop_price = entry_price * Decimal("0.95")    # -5% stop
+                    mfe = entry_price * Decimal("1.05")           # conservative default excursion
+                    mae = entry_price * Decimal("0.98")
+                elif outcome_direction == "bearish":
+                    target_price = entry_price * Decimal("0.90")  # -10% target
+                    stop_price = entry_price * Decimal("1.05")    # +5% stop
+                    mfe = entry_price * Decimal("0.95")
+                    mae = entry_price * Decimal("1.02")
+                else:
+                    target_price = entry_price
+                    stop_price = entry_price
+                    mfe = entry_price
+                    mae = entry_price
+                outcome_status = "projected"
+                outcome_notes = f"Outcome evaluated for {outcome_direction} structure at entry {entry_price}"
+            else:
+                outcome_status = "insufficient_pricing"
+                outcome_notes = "Entry pricing unavailable for outcome projection"
+        else:
+            outcome_status = "no_contract"
+            outcome_notes = "No contract data available for outcome projection"
+
         return OpportunityResult(
             opportunity_id=opportunity_id,
             candidate_id=candidate_id_str,
@@ -263,4 +337,13 @@ class OpportunityEngine(AnalysisEngine):
             completeness=completeness,
             ranking_eligible=ranking_eligible,
             notes=notes,
+            outcome_direction=outcome_direction,
+            outcome_status=outcome_status,
+            entry_price=entry_price,
+            target_price=target_price,
+            stop_price=stop_price,
+            mfe=mfe,
+            mae=mae,
+            outcome_complete=outcome_complete,
+            outcome_notes=outcome_notes,
         )
