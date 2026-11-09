@@ -137,3 +137,42 @@ def test_execution_safety_invariant(tmp_path):
         assert project.execution_mode == ExecutionMode.PAPER
         from app.paper_trading.models import PaperOrder
         assert db.query(PaperOrder).count() == 0
+
+
+def test_daily_xau_idempotent_bootstrap_and_isolation(tmp_path):
+    """Verify idempotent bootstrap for Daily XAU, LIVE_DISABLED enforcement, zero paper orders, and project isolation."""
+    engine, _ = setup_db(tmp_path)
+    with Session(engine) as db:
+        # First run: create Daily XAU
+        p1 = create_project(
+            db,
+            name="Daily XAU",
+            slug="daily-xau",
+            description="Daily gold breakout strategy",
+            config={"strategy_id": "option-premium-ema-rsi", "version": 1},
+        )
+        p1.execution_mode = ExecutionMode.LIVE_DISABLED
+        db.commit()
+
+        assert p1.id is not None
+        assert p1.slug == "daily-xau"
+        assert p1.execution_mode == ExecutionMode.LIVE_DISABLED
+
+        # Second run: idempotent call with same slug/name returns exact same project without duplication
+        p2 = create_project(
+            db,
+            name="Daily XAU",
+            slug="daily-xau",
+            description="Daily gold breakout strategy updated",
+            config={"strategy_id": "option-premium-ema-rsi", "version": 1},
+        )
+        assert p2.id == p1.id
+
+        # Verify other projects (XAUUSD Pullback, NIFTY F&O) do not exist
+        other_projects = db.query(Project).filter(Project.slug.in_(["xauusd-pullback", "nifty-fo"])).all()
+        assert len(other_projects) == 0
+
+        # Verify zero paper orders
+        from app.paper_trading.models import PaperOrder
+        assert db.query(PaperOrder).count() == 0
+

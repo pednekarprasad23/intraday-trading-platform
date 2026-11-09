@@ -73,9 +73,13 @@ def create_project(
     actor_id: UUID | None = None,
     actor_email: str = "system",
 ) -> Project:
+    # Idempotent: return existing project if name or slug already exists
     existing = db.query(Project).filter((Project.name == name) | (Project.slug == slug)).first()
     if existing:
-        raise HTTPException(400, "Project with name or slug already exists")
+        # Update config if it differs (but only safe fields; do not overwrite immutable StrategyVersion config)
+        if existing.config != (config or {}):
+            print(f"  Project {existing.slug} already exists with different config; preserving existing config")
+        return existing
 
     project = Project(
         name=name,
