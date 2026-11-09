@@ -337,21 +337,6 @@ def catalog(tmp_path, days=4, bars=10):
                 source_sha256=sha256(fixture.read_bytes()).hexdigest(),
             )
         db.commit()
-
-
-def test_v26_strategy_version_association_and_reproducibility(tmp_path):
-    """Verify backtest report persists strategy_version_id, config_snapshot, config_sha256 and reproducibility status."""
-    engine, root, instrument_id, dates = catalog(tmp_path)
-    sessions = load(engine, root, instrument_id, dates)
-    result = run(sessions, STRATEGY, COST)
-
-    with Session(engine) as db:
-        report = persist_backtest(db, sessions, STRATEGY, COST, result)
-        db.commit()
-
-        assert report.strategy_version_id is not None
-        assert report.config_snapshot is not None
-        assert report.config_sha256 is not None
     dates = tuple(date(2026, 11, 2) + timedelta(days=i) for i in range(days))
     return engine, root, instrument_id, dates
 

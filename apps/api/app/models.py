@@ -322,8 +322,6 @@ class WalkForwardReport(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
-        DateTime(timezone=True), default=utcnow
-    )
 
 
 class ProviderCredential(Base):
