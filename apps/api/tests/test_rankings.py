@@ -65,7 +65,25 @@ class TestRankingsAuth:
         os.getenv("AUTH_DISABLED", "false").lower() == "true",
         reason="Development mode: AUTH_DISABLED=true, production auth behavior tested separately",
     )
-    def test_requires_auth(self, tmp_path):
+    def test_requires_auth(self, tmp_path, monkeypatch):
+        from app.config import get_settings
+        orig_settings = get_settings()
+        class ProdSettings:
+            app_env = "production"
+            auth_disabled = False
+            redis_url = orig_settings.redis_url
+            database_url = orig_settings.database_url
+            session_ttl_seconds = orig_settings.session_ttl_seconds
+            mt5_snapshot_path = orig_settings.mt5_snapshot_path
+            angelone_snapshot_path = orig_settings.angelone_snapshot_path
+            angelone_enabled = orig_settings.angelone_enabled
+            historical_data_root = orig_settings.historical_data_root
+            credential_key_path = orig_settings.credential_key_path
+            app_name = orig_settings.app_name
+            app_version = orig_settings.app_version
+        monkeypatch.setattr("app.auth.get_settings", lambda: ProdSettings())
+        monkeypatch.setattr("app.main.get_settings", lambda: ProdSettings())
+
         engine, _ = setup_db(tmp_path)
         with Session(engine) as db:
             instrument_id = uuid4()

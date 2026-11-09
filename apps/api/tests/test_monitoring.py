@@ -108,8 +108,27 @@ class TestBackupsEndpoint:
         os.getenv("AUTH_DISABLED", "false").lower() == "true",
         reason="Development mode: AUTH_DISABLED=true, production auth behavior tested separately",
     )
-    def test_backups_requires_auth(self, client):
+    def test_backups_requires_auth(self, client, monkeypatch):
         """Backups endpoint should require authentication."""
+        from app.config import get_settings
+        orig_settings = get_settings()
+        class ProdSettings:
+            app_env = "production"
+            auth_disabled = False
+            redis_url = orig_settings.redis_url
+            database_url = orig_settings.database_url
+            session_ttl_seconds = orig_settings.session_ttl_seconds
+            mt5_snapshot_path = orig_settings.mt5_snapshot_path
+            angelone_snapshot_path = orig_settings.angelone_snapshot_path
+            angelone_enabled = orig_settings.angelone_enabled
+            historical_data_root = orig_settings.historical_data_root
+            credential_key_path = orig_settings.credential_key_path
+            app_name = orig_settings.app_name
+            app_version = orig_settings.app_version
+        monkeypatch.setattr("app.auth.get_settings", lambda: ProdSettings())
+        monkeypatch.setattr("app.main.get_settings", lambda: ProdSettings())
+        monkeypatch.setattr("app.monitoring.routes.get_settings", lambda: ProdSettings())
+
         response = client.get("/api/v1/monitoring/backups")
 
         assert response.status_code == 401  # Unauthorized
@@ -314,8 +333,27 @@ class TestMonitoringWithAuth:
         os.getenv("AUTH_DISABLED", "false").lower() == "true",
         reason="Development mode: AUTH_DISABLED=true, production auth behavior tested separately",
     )
-    def test_backups_endpoint_with_invalid_session(self, client):
+    def test_backups_endpoint_with_invalid_session(self, client, monkeypatch):
         """Backups endpoint should reject invalid session."""
+        from app.config import get_settings
+        orig_settings = get_settings()
+        class ProdSettings:
+            app_env = "production"
+            auth_disabled = False
+            redis_url = orig_settings.redis_url
+            database_url = orig_settings.database_url
+            session_ttl_seconds = orig_settings.session_ttl_seconds
+            mt5_snapshot_path = orig_settings.mt5_snapshot_path
+            angelone_snapshot_path = orig_settings.angelone_snapshot_path
+            angelone_enabled = orig_settings.angelone_enabled
+            historical_data_root = orig_settings.historical_data_root
+            credential_key_path = orig_settings.credential_key_path
+            app_name = orig_settings.app_name
+            app_version = orig_settings.app_version
+        monkeypatch.setattr("app.auth.get_settings", lambda: ProdSettings())
+        monkeypatch.setattr("app.main.get_settings", lambda: ProdSettings())
+        monkeypatch.setattr("app.monitoring.routes.get_settings", lambda: ProdSettings())
+
         response = client.get(
             "/api/v1/monitoring/backups",
             cookies={"session": "invalid_token"}
