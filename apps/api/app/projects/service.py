@@ -1,9 +1,10 @@
-"""Project lifecycle state machine and transition service."""
+"""Project lifecycle state machine and transition service with concurrency protection."""
 
 import json
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AuditLog
@@ -29,7 +30,10 @@ def transition_project(
     actor_id: UUID | None = None,
     actor_email: str = "system",
 ) -> Project:
-    project = db.get(Project, project_id)
+    # Acquire row lock with SELECT ... FOR UPDATE to prevent concurrent race conditions
+    project = db.scalar(
+        select(Project).where(Project.id == project_id).with_for_update()
+    )
     if not project:
         raise HTTPException(404, "Project not found")
 
