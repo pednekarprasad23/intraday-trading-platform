@@ -306,6 +306,13 @@ def create_paper_order(
 
 def execute_paper_order(db: Session, order: PaperOrder) -> PaperExecutionResult:
     """Execute a paper order through the risk pipeline."""
+    pos = db.scalar(
+        select(PaperPosition).where(
+            PaperPosition.account_id == order.account_id,
+            PaperPosition.instrument_id == order.instrument_id,
+        )
+    )
+    current_qty = pos.quantity if pos else Decimal(0)
     ctx = RiskContext(
         account=order.account,
         instrument=order.instrument,
@@ -314,6 +321,7 @@ def execute_paper_order(db: Session, order: PaperOrder) -> PaperExecutionResult:
         order_type=PaperOrderType(order.order_type),
         price=order.price,
         stop_price=order.stop_price,
+        current_position_qty=current_qty,
     )
 
     # Run risk checks
@@ -341,7 +349,6 @@ def execute_paper_order(db: Session, order: PaperOrder) -> PaperExecutionResult:
 
     fill = PaperFill(
         order_id=order.id,
-        fill_sequence=1,
         quantity=order.quantity,
         price=fill_price,
         slippage=Decimal("0"),  # No slippage in paper
@@ -363,7 +370,7 @@ def execute_paper_order(db: Session, order: PaperOrder) -> PaperExecutionResult:
 
 
 def update_position(db: Session, order: PaperOrder) -> PaperPosition:
-    """Update position after a fill."""
+    """Update position after a fill and calculate realized P&L."""
     pos = db.scalar(
         select(PaperPosition).where(
             PaperPosition.account_id == order.account_id,
@@ -371,17 +378,37 @@ def update_position(db: Session, order: PaperOrder) -> PaperPosition:
         )
     )
 
+    fill_price = order.fills[0].price if order.fills else (order.price or Decimal("1000"))
     qty_change = order.quantity if order.side == PaperOrderSide.BUY else -order.quantity
 
     if pos is None:
         pos = PaperPosition(
             account_id=order.account_id,
             instrument_id=order.instrument_id,
+            symbol=order.instrument.canonical_symbol,
             quantity=qty_change,
+            avg_entry_price=fill_price if qty_change > 0 else None,
         )
         db.add(pos)
     else:
-        pos.quantity += qty_change
+        if pos.quantity > 0 and qty_change < 0:
+            closed_qty = min(pos.quantity, abs(qty_change))
+            if pos.avg_entry_price:
+                pnl = closed_qty * (fill_price - pos.avg_entry_price)
+                pos.realized_pnl += pnl
+        elif pos.quantity < 0 and qty_change > 0:
+            closed_qty = min(abs(pos.quantity), qty_change)
+            if pos.avg_entry_price:
+                pnl = closed_qty * (pos.avg_entry_price - fill_price)
+                pos.realized_pnl += pnl
+
+        new_qty = pos.quantity + qty_change
+        if new_qty == 0:
+            pos.avg_entry_price = None
+        elif (pos.quantity >= 0 and qty_change > 0) or (pos.quantity <= 0 and qty_change < 0):
+            total_cost = (abs(pos.quantity) * (pos.avg_entry_price or fill_price)) + (abs(qty_change) * fill_price)
+            pos.avg_entry_price = total_cost / abs(new_qty)
+        pos.quantity = new_qty
 
     db.flush()
     return pos
