@@ -1,4 +1,4 @@
-"""V2.9A & V2.9B Universal Market Discovery & Contract Data Foundation tests.
+"""V2.9A, V2.9B & V2.9C Universal Market Discovery, Contract Data & Scanner Tests.
 
 Tests verify:
 1. NIFTY INDEX underlying representation
@@ -16,8 +16,13 @@ Tests verify:
 13. Provider-neutral option chain fixture retrieval and normalization (CE->CALL, PE->PUT)
 14. Expiry / strike variations produce distinct canonical identities
 15. Nullable Greeks and market fields supported gracefully
-16. Provider errors (EmptyChainError, UnsupportedExpiryError, MalformedResponseError) handled safely
+16. Provider errors handled safely
 17. Timestamps preserved correctly in snapshots and contracts
+18. Scanner consumes normalized market data and produces MarketCandidate instances
+19. MarketCandidate correctly links canonical contract ID (not provider ID)
+20. CALL and PUT candidates generated correctly with distinct strikes/expiries
+21. Deterministic candidate ID idempotency and uniqueness
+22. Empty scan handles empty collections cleanly
 """
 
 from datetime import date
@@ -41,11 +46,17 @@ from app.discovery.provider import (
     EmptyChainError,
     UnsupportedExpiryError,
     NormalizedOptionContract,
+    OptionChainSnapshot,
+)
+from app.discovery.scanner import (
+    ScannerContext,
+    ReferenceTestScanner,
+    MarketCandidate,
 )
 
 
 class TestDiscoveryFoundation:
-    """Universal market discovery and contract data foundation test suite."""
+    """Universal market discovery, contract data & scanner test suite."""
 
     def test_nifty_index_underlying(self, db: Session):
         """1. Prove representation of NIFTY INDEX underlying."""
@@ -150,13 +161,11 @@ class TestDiscoveryFoundation:
         assert snapshot.timestamp is not None
         assert len(snapshot.contracts) > 0
 
-        # Verify contracts have valid canonical IDs and option types
         call_contracts = [c for c in snapshot.contracts if c.option_type == "CALL"]
         put_contracts = [c for c in snapshot.contracts if c.option_type == "PUT"]
         assert len(call_contracts) > 0
         assert len(put_contracts) > 0
 
-        # Verify distinct identities for different strikes / expiries / types
         c1 = call_contracts[0]
         p1 = put_contracts[0]
         assert c1.canonical_contract_id != p1.canonical_contract_id
@@ -171,8 +180,65 @@ class TestDiscoveryFoundation:
         with pytest.raises(UnsupportedExpiryError):
             adapter.get_option_chain("NIFTY", "2099-01-01")
 
+    def test_scanner_and_market_candidate(self):
+        """18, 19, 20, 21, 22. Scanner consumes normalized market data, produces MarketCandidate with canonical identity, distinct strikes/expiries, idempotency."""
+        adapter = FixtureDiscoveryAdapter()
+        snapshot = adapter.get_option_chain("NIFTY", "2026-11-26")
+        context = ScannerContext(universe_name="NIFTY Options V1", snapshot=snapshot)
+
+        scanner = ReferenceTestScanner()
+        candidates = scanner.scan(context)
+        assert len(candidates) > 0
+
+        # Verify candidate properties
+        c = candidates[0]
+        assert c.scanner_id == "reference-test-scanner"
+        assert c.underlying == "NIFTY"
+        assert c.canonical_contract_id is not None
+        assert "INDIA:NFO:NIFTY:OPTION:" in c.canonical_contract_id
+        assert c.candidate_id is not None
+
+        # Verify CALL and PUT candidates exist and have distinct canonical IDs
+        calls = [cand for cand in candidates if cand.option_type == "CALL"]
+        puts = [cand for cand in candidates if cand.option_type == "PUT"]
+        assert len(calls) > 0
+        assert len(puts) > 0
+        assert calls[0].canonical_contract_id != puts[0].canonical_contract_id
+
+        # Verify idempotency / candidate_id determinism for same observation
+        c_dup = MarketCandidate(
+            scanner_id=c.scanner_id,
+            scanner_version=c.scanner_version,
+            market=c.market,
+            exchange=c.exchange,
+            asset_class=c.asset_class,
+            instrument_type=c.instrument_type,
+            underlying=c.underlying,
+            discovery_reason=c.discovery_reason,
+            snapshot_at=c.snapshot_at,
+            canonical_contract_id=c.canonical_contract_id,
+            expiry=c.expiry,
+            strike=c.strike,
+            option_type=c.option_type,
+            evidence=c.evidence,
+            provider=c.provider,
+        )
+        assert c.candidate_id == c_dup.candidate_id
+
+        # Verify empty scan handling
+        empty_snapshot = OptionChainSnapshot(
+            underlying="NIFTY",
+            spot_price=Decimal("26000"),
+            expiry="2026-11-26",
+            provider="DEMO",
+            contracts=[],
+        )
+        empty_context = ScannerContext(universe_name="NIFTY Options V1", snapshot=empty_snapshot)
+        empty_candidates = scanner.scan(empty_context)
+        assert len(empty_candidates) == 0
+
     def test_zero_execution_dependency(self):
-        """11, 16. Verify zero execution dependency across all discovery modules."""
+        """11. Verify zero execution dependency across all discovery modules."""
         for mod_name in list(sys.modules.keys()):
             if "app.discovery" in mod_name:
                 mod = sys.modules[mod_name]

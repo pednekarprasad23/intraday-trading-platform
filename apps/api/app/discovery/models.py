@@ -19,6 +19,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Index,
     Numeric,
     JSON,
     String,
@@ -136,3 +137,34 @@ def generate_canonical_identity(
         if option_type:
             parts.append(option_type.upper())
     return ":".join(parts)
+
+
+class MarketCandidateModel(Base):
+    """Durable database storage for MarketCandidate discovery evidence."""
+
+    __tablename__ = "market_candidates"
+    __table_args__ = (
+        UniqueConstraint("candidate_id", name="uq_market_candidate_id"),
+        Index("ix_market_candidates_scanner", "scanner_id"),
+        Index("ix_market_candidates_contract", "canonical_contract_id"),
+        Index("ix_market_candidates_detected", "detected_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    candidate_id: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    scanner_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    scanner_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    market: Mapped[str] = mapped_column(String(50), nullable=False)
+    exchange: Mapped[str] = mapped_column(String(50), nullable=False)
+    asset_class: Mapped[str] = mapped_column(String(30), nullable=False)
+    instrument_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    underlying: Mapped[str] = mapped_column(String(100), nullable=False)
+    canonical_contract_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    expiry: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    strike: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
+    option_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    discovery_reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    evidence: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
