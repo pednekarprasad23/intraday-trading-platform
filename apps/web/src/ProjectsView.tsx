@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { api, type Project, type ProjectRun, type KillSwitchStatus, type SystemStatus } from './api';
-import { StatusBadge } from './StatusBadge';
+import { api, type Project, type ProjectRun, type KillSwitchStatus } from './api';
+import { StatusBadge, type StatusKind } from './StatusBadge';
 
 const STALE_THRESHOLD_MS = 30_000;  // 30 seconds
 
@@ -31,6 +31,19 @@ function computeProjectHealth(project: Project): ProjectHealth {
   }
 
   return { status, ageMs, label };
+}
+
+function getProjectBadgeStatus(statusVal: string): StatusKind {
+  if (statusVal === 'RUNNING') return 'healthy';
+  if (statusVal === 'PAUSED') return 'paused';
+  if (statusVal === 'STOPPED') return 'offline';
+  return 'degraded';
+}
+
+function getHealthBadgeStatus(healthStatus: string): StatusKind {
+  if (healthStatus === 'HEALTHY') return 'healthy';
+  if (healthStatus === 'STALE') return 'degraded';
+  return 'offline';
 }
 
 function formatResultSummary(summary: any | null) {
@@ -64,7 +77,7 @@ export function ProjectsView() {
   }, []);
 
   useEffect(() => {
-    void api<KillSwitchStatus>('/paper/kill-switch').then(({ state }) => setKillSwitch({ state: state || 'ARMED' }));
+    void api<KillSwitchStatus>('/paper/kill-switch').then(res => setKillSwitch(res));
   }, []);
 
   useEffect(() => {
@@ -88,6 +101,8 @@ export function ProjectsView() {
     }
   }, []);
 
+  const ksTriggered = killSwitch?.state === 'TRIGGERED' || killSwitch?.state === 'triggered';
+
   return (
     <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto' }}>
       <header style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
@@ -98,9 +113,9 @@ export function ProjectsView() {
       </header>
 
       {killSwitch && (
-        <div style={{ marginBottom: '16px', padding: '8px 12px', borderRadius: '6px', background: killSwitch.state === 'TRIGGERED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.08)', color: killSwitch.state === 'TRIGGERED' ? '#dc2626' : '#22c55e', fontSize: '0.75rem' }}>
-          <StatusBadge status={killSwitch.state === 'TRIGGERED' ? 'triggered' : 'healthy'} />
-          {killSwitch.state === 'TRIGGERED' ? 'KILL SWITCH BLOCKS EXECUTION' : 'Kill Switch ARMED'}
+        <div style={{ marginBottom: '16px', padding: '8px 12px', borderRadius: '6px', background: ksTriggered ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.08)', color: ksTriggered ? '#dc2626' : '#22c55e', fontSize: '0.75rem' }}>
+          <StatusBadge status={ksTriggered ? 'triggered' : 'healthy'} />
+          {ksTriggered ? ' KILL SWITCH BLOCKS EXECUTION' : ' Kill Switch ARMED'}
         </div>
       )}
 
@@ -112,6 +127,7 @@ export function ProjectsView() {
         <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
           {projects.map((project) => {
             const health = computeProjectHealth(project);
+            const statusVal = project.status?.value || 'CREATED';
 
             return (
               <div key={project.id} style={{
@@ -141,7 +157,7 @@ export function ProjectsView() {
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.7rem', color: '#64748b' }}>State: </span>
-                    <StatusBadge status={project.status.value as any} label={project.status.value} />
+                    <StatusBadge status={getProjectBadgeStatus(statusVal)} label={statusVal} />
                   </div>
                 </div>
 
@@ -153,7 +169,7 @@ export function ProjectsView() {
                   justifyContent: 'space-between',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <StatusBadge status={health.status} label={health.label} />
+                    <StatusBadge status={getHealthBadgeStatus(health.status)} label={health.label} />
                     <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Runtime</span>
                   </div>
                   <div style={{
@@ -191,10 +207,10 @@ export function ProjectsView() {
                         Active run: {project.runs?.[0]?.id || '—'}
                       </div>
                     )}
-                    {project.status.value === 'STOPPED' && (
+                    {statusVal === 'STOPPED' && (
                       <button
                         onClick={() => handleProjectStart(project.id)}
-                        disabled={killSwitch.state === 'TRIGGERED'}
+                        disabled={ksTriggered}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -203,19 +219,19 @@ export function ProjectsView() {
                           fontSize: '0.7rem',
                           fontWeight: 500,
                           borderRadius: '6px',
-                          background: killSwitch.state === 'TRIGGERED' ? 'rgba(239, 68, 68, 0.3)' : '#10b981',
-                          color: killSwitch.state === 'TRIGGERED' ? '#dc2626' : '#fff',
+                          background: ksTriggered ? 'rgba(239, 68, 68, 0.3)' : '#10b981',
+                          color: ksTriggered ? '#dc2626' : '#fff',
                           border: 'none',
-                          cursor: killSwitch.state === 'TRIGGERED' ? 'not-allowed' : 'pointer',
+                          cursor: ksTriggered ? 'not-allowed' : 'pointer',
                           transition: 'background 0.15s',
-                        }
-                        title={killSwitch.state === 'TRIGGERED' ? 'Kill Switch triggered. Start blocked.' : 'Start project'}
+                        }}
+                        title={ksTriggered ? 'Kill Switch triggered. Start blocked.' : 'Start project'}
                       >
-                        <StatusBadge status={killSwitch.state !== 'TRIGGERED' ? 'healthy' : 'triggered'} size="small" />
+                        <StatusBadge status={!ksTriggered ? 'healthy' : 'triggered'} />
                         START
                       </button>
                     )}
-                    {project.status.value !== 'STOPPED' && (
+                    {statusVal !== 'STOPPED' && (
                       <button
                         onClick={() => handleProjectStop(project.id)}
                         style={{
@@ -231,10 +247,10 @@ export function ProjectsView() {
                           border: 'none',
                           cursor: 'pointer',
                           transition: 'background 0.15s',
-                        }
+                        }}
                         title="Stop project runtime (cancels active runs)"
                       >
-                        <StatusBadge status="triggered" size="small" />
+                        <StatusBadge status="triggered" />
                         STOP
                       </button>
                     )}

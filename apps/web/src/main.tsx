@@ -17,8 +17,9 @@ import { SignalsView } from './SignalsView';
 import { PositionsView } from './PositionsView';
 import { ReconciliationView } from './ReconciliationView';
 import { RiskOperationsView } from './RiskOperationsView';
+import { ProjectsView } from './ProjectsView';
 
-type View = 'dashboard' | 'research' | 'market' | 'instruments' | 'system' | 'paper' | 'historical' | 'orders' | 'positions' | 'risk' | 'reconcile' | 'signals';
+type View = 'dashboard' | 'research' | 'market' | 'instruments' | 'system' | 'paper' | 'historical' | 'orders' | 'positions' | 'risk' | 'reconcile' | 'signals' | 'projects';
 
 interface NavGroup {
   category: string;

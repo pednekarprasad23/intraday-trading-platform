@@ -8,9 +8,9 @@ export interface ResearchEvaluation { id: string; decision_time: string | null; 
 export interface ScoreComponent { performance: number; risk: number; data_quality: number; structure_alignment: number }
 export interface ProjectStatus { value: 'CREATED' | 'STARTING' | 'RUNNING' | 'PAUSED' | 'STOPPING' | 'STOPPED' | 'ERROR' | 'ARCHIVED'; }
 export interface ProjectRunStatus { value: 'QUEUED' | 'STARTING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'; }
-export interface Project { id: string; name: string; slug: string; description: string | null; config: any | null; runtime_status: string | null; runtime_instance_id: string | null; heartbeat_at: string | null; last_error: string | null; strategies: Array<{id: string; strategy_id: string; role: string; priority: number}>; runs: Array<{id: string; strategy_version_id: string; status: string; parameters_sha256: string | null; result_summary: {net_pnl: string; trade_count: string; win_rate: string; profit_factor: string; execution_status: string} | null}>; created_at: string; updated_at: string; }
+export interface Project { id: string; name: string; slug: string; description: string | null; status: ProjectStatus; config: any | null; runtime_status: string | null; runtime_instance_id: string | null; heartbeat_at: string | null; last_error: string | null; strategies: Array<{id: string; strategy_id: string; role: string; priority: number}>; runs: Array<{id: string; strategy_version_id: string; status: string; parameters_sha256: string | null; result_summary: {net_pnl: string; trade_count: string; win_rate: string; profit_factor: string; execution_status: string} | null}>; created_at: string; updated_at: string; }
 export interface ProjectRun { id: string; project_id: string; strategy_version_id: string; status: string; parameters_snapshot: any; parameters_sha256: string; requested_by: string | null; runtime_instance_id: string | null; error_code: string | null; error_message: string | null; result_summary: {net_pnl: string; trade_count: string; win_rate: string; profit_factor: string; execution_status: string} | null; created_at: string; started_at: string | null; finished_at: string | null; heartbeat_at: string | null; }
-export interface KillSwitchStatus { name: string; state: 'ARMED' | 'TRIGGERED'; triggered_by: string | null; triggered_at: string | null; reason: string | null; reset_by: string | null; reset_at: string | null; auto_triggered: boolean; created_at: string; updated_at: string; }
+export interface KillSwitchStatus { name: string; state: 'ARMED' | 'TRIGGERED' | 'triggered' | 'armed'; triggered_by: string | null; triggered_at: string | null; reason: string | null; reset_by: string | null; reset_at: string | null; auto_triggered: boolean; created_at: string | null; updated_at: string | null; }
 export interface CandidateRanking { candidate_id: string; strategy_id: string; strategy_version: number; instrument_id: string; session_date: string; composite_score: number; score_breakdown: ScoreComponent; sub_scores: Record<string, number>; is_rejected: boolean; rejection_reasons: string[]; ranking_version: number; commentary: string; evidence: Record<string, unknown> }
 export interface RankingsPage extends Page<CandidateRanking> { limit: number; offset: number }
 export interface Page<T> { total: number; items: T[] }
@@ -69,19 +69,6 @@ export interface PaperOrder {
   rejected_reason: string | null;
   fills: { id: string; order_id: string; quantity: string; price: string; commission: string; fees: string; slippage: string; filled_at: string; provenance: string }[];
   strategy_id: string | null;
-}
-
-export interface KillSwitchStatus {
-  name: string;
-  state: string;
-  triggered_by: string | null;
-  triggered_at: string | null;
-  reason: string | null;
-  reset_by: string | null;
-  reset_at: string | null;
-  auto_triggered: boolean;
-  created_at: string | null;
-  updated_at: string | null;
 }
 
 export interface OrderSubmission {
