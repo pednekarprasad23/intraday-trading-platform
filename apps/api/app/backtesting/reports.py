@@ -69,7 +69,6 @@ def _common(
         strategy_id=strategy.strategy_id,
         strategy_version=strategy.version,
         strategy_version_id=sv_id,
-        project_id=None,
         config_snapshot=cfg_snap,
         config_sha256=cfg_sha,
         simulation_config=_json(asdict(config)),

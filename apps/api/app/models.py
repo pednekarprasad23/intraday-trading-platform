@@ -234,7 +234,6 @@ class StrategySignal(Base):
     direction: Mapped[str] = mapped_column(String(10))
     input_sha256: Mapped[str] = mapped_column(String(64))
     snapshot: Mapped[dict] = mapped_column(JSON)
-    project_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -283,7 +282,6 @@ class BacktestReport(Base):
     strategy_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("strategy_versions.id"), nullable=True
     )
-    project_id: Mapped[UUID | None] = mapped_column(nullable=True)
     config_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     config_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     simulation_config: Mapped[dict] = mapped_column(JSON)
@@ -311,7 +309,6 @@ class WalkForwardReport(Base):
     strategy_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("strategy_versions.id"), nullable=True
     )
-    project_id: Mapped[UUID | None] = mapped_column(nullable=True)
     config_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     config_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     simulation_config: Mapped[dict] = mapped_column(JSON)
@@ -323,6 +320,8 @@ class WalkForwardReport(Base):
     test_size: Mapped[int] = mapped_column()
     folds: Mapped[list] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
         DateTime(timezone=True), default=utcnow
     )
 

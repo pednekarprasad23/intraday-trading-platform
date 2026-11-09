@@ -120,7 +120,6 @@ export const paper = {
     if (blocked !== undefined) params.set('blocked', String(blocked));
     return api<PaperPagination<PaperRiskEvent>>(`/paper/risk-events?${params}`);
   },
-  resetAccount: (accountId?: string) => api<PaperAccountSummary>(accountId ? `/paper/accounts/${accountId}/reset` : '/paper/accounts/reset', { method: 'POST' }),
 };
 
 export const market = { coverage: (offset = 0, filters: CoverageFilters = {}) => {

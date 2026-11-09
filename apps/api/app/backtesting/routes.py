@@ -15,13 +15,28 @@ from app.models import (
     ResearchEvaluation,
     StrategySignal,
     WalkForwardReport,
+    StrategyVersion,
 )
+from app.backtesting.engine import fingerprint
 
 router = APIRouter(prefix="/api/v1/research", dependencies=[Depends(require_user)])
 
 
 def _report(db, row):
-    reproducibility_status = "VERIFIED" if (row.strategy_version_id and row.config_sha256) else "LEGACY_UNVERIFIED"
+    status = "LEGACY_UNVERIFIED"
+    if not row.strategy_version_id or not row.config_sha256:
+        status = "MISSING_CONFIG"
+    else:
+        sv = db.get(StrategyVersion, row.strategy_version_id)
+        if not sv:
+            status = "VERSION_UNAVAILABLE"
+        else:
+            snap_hash = fingerprint(row.config_snapshot) if row.config_snapshot is not None else None
+            if snap_hash != row.config_sha256 or snap_hash != sv.config_sha256:
+                status = "FINGERPRINT_MISMATCH"
+            else:
+                status = "VERIFIED"
+
     item = dict(
         id=row.id,
         fingerprint=row.fingerprint,
@@ -33,10 +48,9 @@ def _report(db, row):
         strategy_id=row.strategy_id,
         strategy_version=row.strategy_version,
         strategy_version_id=row.strategy_version_id,
-        project_id=row.project_id,
         config_snapshot=row.config_snapshot,
         config_sha256=row.config_sha256,
-        reproducibility_status=reproducibility_status,
+        reproducibility_status=status,
         metrics=row.metrics,
         warnings=row.warnings,
         created_at=row.created_at,

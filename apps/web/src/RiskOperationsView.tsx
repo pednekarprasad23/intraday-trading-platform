@@ -32,10 +32,6 @@ export function RiskOperationsView() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
 
-  // Reset paper account modal state
-  const [showResetAccountModal, setShowResetAccountModal] = useState(false);
-  const [resettingAccount, setResettingAccount] = useState(false);
-
   async function loadData() {
     try {
       setLoading(true);
@@ -90,20 +86,6 @@ export function RiskOperationsView() {
       setError(err?.message || 'Failed to reset kill switch');
     } finally {
       setResetting(false);
-    }
-  }
-
-  async function handleResetAccount() {
-    setResettingAccount(true);
-    try {
-      const updated = await paper.resetAccount(summary?.account_id);
-      setSummary(updated);
-      setShowResetAccountModal(false);
-      void loadData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to reset paper account');
-    } finally {
-      setResettingAccount(false);
     }
   }
 
@@ -165,21 +147,12 @@ export function RiskOperationsView() {
 
       {/* Risk & Capital KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-        <div style={{ background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #d4dde4', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
-            <span className="muted" style={{ fontSize: '0.78rem' }}>Available Capital</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '4px' }}>
-              {summary ? `₹${parseFloat(summary.available_capital.toString()).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
-            </div>
-            <span className="muted" style={{ fontSize: '0.72rem' }}>Initial: ₹{summary ? parseFloat(summary.initial_capital.toString()).toLocaleString() : '—'}</span>
+        <div style={{ background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #d4dde4' }}>
+          <span className="muted" style={{ fontSize: '0.78rem' }}>Available Capital</span>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '4px' }}>
+            {summary ? `₹${parseFloat(summary.available_capital.toString()).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
           </div>
-          <button
-            className="quiet-button"
-            onClick={() => setShowResetAccountModal(true)}
-            style={{ marginTop: '12px', fontSize: '0.75rem', alignSelf: 'flex-start', color: '#9a392a', borderColor: '#d4dde4', padding: '4px 8px' }}
-          >
-            Reset Account &amp; Positions
-          </button>
+          <span className="muted" style={{ fontSize: '0.72rem' }}>Initial: ₹{summary ? parseFloat(summary.initial_capital.toString()).toLocaleString() : '—'}</span>
         </div>
         <div style={{ background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #d4dde4' }}>
           <span className="muted" style={{ fontSize: '0.78rem' }}>Reserved Capital</span>
@@ -319,27 +292,6 @@ export function RiskOperationsView() {
         </div>
       )}
 
-      {/* Reset Account Modal */}
-      {showResetAccountModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '8px', width: '450px', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ margin: 0, color: '#9a392a' }}>Reset Paper Account Capital &amp; Positions</h3>
-            <p style={{ fontSize: '0.85rem', margin: 0 }}>
-              This will restore available capital back to initial capital and clear all open simulated positions. A risk audit event will be recorded.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button className="quiet-button" onClick={() => setShowResetAccountModal(false)} disabled={resettingAccount}>Cancel</button>
-              <button
-                onClick={() => void handleResetAccount()}
-                disabled={resettingAccount}
-                style={{ background: '#9a392a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
-              >
-                {resettingAccount ? 'Resetting…' : 'Confirm Account Reset'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

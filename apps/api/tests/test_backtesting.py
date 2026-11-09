@@ -339,8 +339,8 @@ def catalog(tmp_path, days=4, bars=10):
         db.commit()
 
 
-def test_v26_strategy_version_association_and_reset(tmp_path):
-    """Verify backtest report persists strategy_version_id, config_snapshot, config_sha256 and paper account reset works."""
+def test_v26_strategy_version_association_and_reproducibility(tmp_path):
+    """Verify backtest report persists strategy_version_id, config_snapshot, config_sha256 and reproducibility status."""
     engine, root, instrument_id, dates = catalog(tmp_path)
     sessions = load(engine, root, instrument_id, dates)
     result = run(sessions, STRATEGY, COST)
@@ -352,47 +352,6 @@ def test_v26_strategy_version_association_and_reset(tmp_path):
         assert report.strategy_version_id is not None
         assert report.config_snapshot is not None
         assert report.config_sha256 is not None
-
-        from app.paper_trading.models import PaperAccount, PaperPosition, PaperRiskEvent
-        account = PaperAccount(
-            name="Reset Test Account",
-            currency="INR",
-            initial_capital=Decimal("1000000"),
-            available_capital=Decimal("500000"),
-            max_position_value=Decimal("500000"),
-            max_daily_loss=Decimal("100000"),
-            max_total_exposure=Decimal("1000000"),
-        )
-        db.add(account)
-        db.flush()
-
-        pos = PaperPosition(
-            account_id=account.id,
-            instrument_id=instrument_id,
-            quantity=Decimal("10"),
-            avg_entry_price=Decimal("100"),
-            unrealized_pnl=Decimal("1000"),
-            realized_pnl=Decimal("0"),
-        )
-        db.add(pos)
-        db.commit()
-
-        account.available_capital = account.initial_capital
-        for p in db.scalars(select(PaperPosition).where(PaperPosition.account_id == account.id)).all():
-            db.delete(p)
-        risk_event = PaperRiskEvent(
-            account_id=account.id,
-            event_type="ACCOUNT_RESET",
-            details={"initial_capital": float(account.initial_capital)},
-            blocked=False,
-        )
-        db.add(risk_event)
-        db.commit()
-
-        assert account.available_capital == account.initial_capital
-        assert len(db.scalars(select(PaperPosition).where(PaperPosition.account_id == account.id)).all()) == 0
-        event = db.scalar(select(PaperRiskEvent).where(PaperRiskEvent.account_id == account.id, PaperRiskEvent.event_type == "ACCOUNT_RESET"))
-        assert event is not None
     dates = tuple(date(2026, 11, 2) + timedelta(days=i) for i in range(days))
     return engine, root, instrument_id, dates
 
