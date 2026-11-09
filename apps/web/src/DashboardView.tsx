@@ -33,7 +33,7 @@ function PnL({ value }: { value: string | null }) {
   return <span style={{ color, fontWeight: 700 }}>{sign}{num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>;
 }
 
-export function ProjectOperationalCard({ name, strategyId, instrument, market, broker, mode, state, pnl, lastSignal, lastExecution, health }: {
+export function ProjectOperationalCard({ name, strategyId, instrument, market, broker, mode, state, pnl, lastSignal, lastExecution, health, onInspectOrders }: {
   name: string;
   strategyId?: string;
   instrument: string;
@@ -45,6 +45,7 @@ export function ProjectOperationalCard({ name, strategyId, instrument, market, b
   lastSignal?: string | null;
   lastExecution?: string | null;
   health: 'HEALTHY' | 'WARNING' | 'ERROR' | 'OFFLINE';
+  onInspectOrders?: () => void;
 }) {
   const healthColors: Record<string, { bg: string; color: string }> = {
     HEALTHY: { bg: '#e6f7f3', color: '#126756' },
@@ -84,16 +85,23 @@ export function ProjectOperationalCard({ name, strategyId, instrument, market, b
       </div>
 
       {(lastSignal || lastExecution) && (
-        <div style={{ fontSize: '0.75rem', color: '#64778a', borderTop: '1px dashed #eef2f5', paddingTop: '6px' }}>
-          {lastSignal && <div>Last Signal: {time(lastSignal)}</div>}
-          {lastExecution && <div>Last Execution: {time(lastExecution)}</div>}
+        <div style={{ fontSize: '0.75rem', color: '#64778a', borderTop: '1px dashed #eef2f5', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            {lastSignal && <div>Last Signal: {time(lastSignal)}</div>}
+            {lastExecution && <div>Last Execution: {time(lastExecution)}</div>}
+          </div>
+          {onInspectOrders && (
+            <button className="quiet-button" style={{ padding: '2px 6px', fontSize: '0.7rem' }} onClick={onInspectOrders}>
+              Orders →
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-export function DashboardView() {
+export function DashboardView({ onNavigate }: { onNavigate?: (view: any) => void }) {
   const [account, setAccount] = useState<PaperAccountSummary | null>(null);
   const [positions, setPositions] = useState<PaperPosition[]>([]);
   const [orders, setOrders] = useState<PaperOrder[]>([]);
@@ -173,6 +181,11 @@ export function DashboardView() {
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {lastUpdated && <span className="muted" style={{ fontSize: '0.8rem' }}>Updated: {lastUpdated.toLocaleTimeString()}</span>}
           <button className="quiet-button" onClick={loadData} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh Telemetry'}</button>
+          {onNavigate && (
+            <button className="primary-button" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => onNavigate('orders')}>
+              View Orders &amp; Lifecycle →
+            </button>
+          )}
         </div>
       </div>
 
@@ -180,7 +193,14 @@ export function DashboardView() {
 
       {/* A. SUMMARY KPI ROW */}
       <section>
-        <h3 style={{ fontSize: '1.05rem', marginBottom: '12px', color: '#111b21' }}>Summary Key Performance Indicators</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ fontSize: '1.05rem', margin: 0, color: '#111b21' }}>Summary Key Performance Indicators</h3>
+          {onNavigate && (
+            <button className="quiet-button" style={{ fontSize: '0.8rem' }} onClick={() => onNavigate('signals')}>
+              View Signals Stream →
+            </button>
+          )}
+        </div>
         <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div className="card" style={{ padding: '16px', background: '#fff', border: '1px solid #d4dde4', borderRadius: '8px' }}>
             <span className="muted" style={{ fontSize: '0.8rem' }}>Total P&amp;L</span>
@@ -240,6 +260,7 @@ export function DashboardView() {
             health={ksState === 'triggered' ? 'WARNING' : 'HEALTHY'}
             lastSignal={orders[0]?.created_at}
             lastExecution={orders[0]?.submitted_at}
+            onInspectOrders={onNavigate ? () => onNavigate('orders') : undefined}
           />
 
           <ProjectOperationalCard
@@ -252,6 +273,7 @@ export function DashboardView() {
             state="ARMED"
             pnl="0.00"
             health="HEALTHY"
+            onInspectOrders={onNavigate ? () => onNavigate('orders') : undefined}
           />
 
           <ProjectOperationalCard
@@ -264,6 +286,7 @@ export function DashboardView() {
             state="READY"
             pnl="0.00"
             health="HEALTHY"
+            onInspectOrders={onNavigate ? () => onNavigate('orders') : undefined}
           />
         </div>
       </section>
@@ -271,7 +294,14 @@ export function DashboardView() {
       {/* C. OPEN POSITIONS & RECENT ACTIVITY */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <section style={{ background: '#fff', padding: '16px', border: '1px solid #d4dde4', borderRadius: '8px' }}>
-          <h3 style={{ fontSize: '1.05rem', marginBottom: '12px', color: '#111b21' }}>Open Positions ({positions.length})</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '1.05rem', margin: 0, color: '#111b21' }}>Open Positions ({positions.length})</h3>
+            {onNavigate && (
+              <button className="quiet-button" style={{ fontSize: '0.78rem' }} onClick={() => onNavigate('positions')}>
+                Positions →
+              </button>
+            )}
+          </div>
           {positions.length === 0 ? (
             <p className="muted" style={{ padding: '20px 0', textAlign: 'center' }}>No open positions.</p>
           ) : (
@@ -293,13 +323,24 @@ export function DashboardView() {
         </section>
 
         <section style={{ background: '#fff', padding: '16px', border: '1px solid #d4dde4', borderRadius: '8px' }}>
-          <h3 style={{ fontSize: '1.05rem', marginBottom: '12px', color: '#111b21' }}>Recent Activity &amp; Orders</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '1.05rem', margin: 0, color: '#111b21' }}>Recent Activity &amp; Orders</h3>
+            {onNavigate && (
+              <button className="quiet-button" style={{ fontSize: '0.78rem' }} onClick={() => onNavigate('orders')}>
+                Orders →
+              </button>
+            )}
+          </div>
           {activityItems.length === 0 ? (
             <p className="muted" style={{ padding: '20px 0', textAlign: 'center' }}>No recent activity.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
               {activityItems.map((item, idx) => (
-                <div key={item.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: '#f8fafc', borderRadius: '6px', fontSize: '0.83rem' }}>
+                <div
+                  key={item.id || idx}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: '#f8fafc', borderRadius: '6px', fontSize: '0.83rem', cursor: onNavigate ? 'pointer' : 'default' }}
+                  onClick={onNavigate ? () => onNavigate('orders') : undefined}
+                >
                   <div>
                     <strong>{item.title}</strong>
                     <div className="muted" style={{ fontSize: '0.72rem' }}>{item.detail} • {time(item.timestamp)}</div>
