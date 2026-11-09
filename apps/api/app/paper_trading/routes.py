@@ -231,6 +231,48 @@ def get_account_summary(
     )
 
 
+@router.post("/accounts/{account_id}/reset", response_model=AccountSummaryResponse)
+def reset_paper_account(
+    account_id: UUID,
+    db: Session = Depends(get_db),
+    user = Depends(require_user),
+):
+    """Reset paper trading account capital and positions back to initial state with risk audit."""
+    account = db.get(PaperAccount, account_id)
+    if not account:
+        raise HTTPException(404, "Paper account not found")
+
+    account.available_capital = account.initial_capital
+
+    positions = db.scalars(
+        select(PaperPosition).where(PaperPosition.account_id == account.id)
+    ).all()
+    for pos in positions:
+        db.delete(pos)
+
+    risk_event = PaperRiskEvent(
+        account_id=account.id,
+        event_type="ACCOUNT_RESET",
+        details={"initial_capital": float(account.initial_capital), "reset_by": getattr(user, "email", "system")},
+        blocked=False,
+    )
+    db.add(risk_event)
+    db.commit()
+    db.refresh(account)
+
+    return get_account_summary(db=db)
+
+
+@router.post("/accounts/reset", response_model=AccountSummaryResponse)
+def reset_active_paper_account(
+    db: Session = Depends(get_db),
+    user = Depends(require_user),
+):
+    """Reset active paper trading account capital and positions back to initial state with risk audit."""
+    account = get_active_account(db)
+    return reset_paper_account(account_id=account.id, db=db, user=user)
+
+
 # ============================================================================
 # Orders Endpoints
 # ============================================================================

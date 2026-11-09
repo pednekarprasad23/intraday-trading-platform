@@ -13,7 +13,7 @@ from app.backtesting.engine import (
 )
 from app.backtesting.walk_forward import Fold
 from app.historical.reader import VerifiedSession
-from app.models import BacktestReport, WalkForwardReport
+from app.models import BacktestReport, WalkForwardReport, StrategyVersion
 from app.strategies.contracts import StrategyConfig
 
 
@@ -32,18 +32,46 @@ def _metrics(result: Result) -> dict:
     return _json(asdict(result.metrics))
 
 
+def _resolve_strategy_version(db: Session, strategy: StrategyConfig):
+    strategy_config_dict = _json(asdict(strategy))
+    config_sha256 = fingerprint(strategy_config_dict)
+    sv = db.scalar(
+        select(StrategyVersion).where(
+            StrategyVersion.strategy_id == strategy.strategy_id,
+            StrategyVersion.version == strategy.version,
+            StrategyVersion.config_sha256 == config_sha256,
+        )
+    )
+    if not sv:
+        sv = StrategyVersion(
+            strategy_id=strategy.strategy_id,
+            version=strategy.version,
+            config_sha256=config_sha256,
+            config=strategy_config_dict,
+        )
+        db.add(sv)
+        db.flush()
+    return sv.id, strategy_config_dict, config_sha256
+
+
 def _common(
+    db: Session,
     sessions: tuple[VerifiedSession, ...],
     strategy: StrategyConfig,
     config: SimulationConfig,
 ):
     source = sessions[0].source
+    sv_id, cfg_snap, cfg_sha = _resolve_strategy_version(db, strategy)
     return dict(
         provider=source.provider,
         instrument_id=source.instrument_id,
         timeframe=source.timeframe,
         strategy_id=strategy.strategy_id,
         strategy_version=strategy.version,
+        strategy_version_id=sv_id,
+        project_id=None,
+        config_snapshot=cfg_snap,
+        config_sha256=cfg_sha,
         simulation_config=_json(asdict(config)),
         strategy_config=_json(asdict(strategy)),
         sources=[
@@ -72,7 +100,7 @@ def persist_backtest(
     if existing is not None:
         return existing
     report = BacktestReport(
-        **_common(sessions, strategy, config),
+        **_common(db, sessions, strategy, config),
         fingerprint=result.fingerprint,
         input_fingerprint=result.input_fingerprint,
         metrics=_metrics(result),
@@ -127,7 +155,7 @@ def persist_walk_forward(
     if existing is not None:
         return existing
     report = WalkForwardReport(
-        **_common(sessions, strategy, config),
+        **_common(db, sessions, strategy, config),
         fingerprint=identity,
         input_fingerprint=inputs,
         metrics=_json(

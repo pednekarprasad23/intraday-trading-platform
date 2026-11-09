@@ -2,7 +2,7 @@ export interface Instrument { id: string; canonical_symbol: string; display_name
 export interface SystemStatus { version: string; environment: string; trading_mode: string; live_trading_enabled: boolean; market_data: string }
 export interface ResearchMetrics { net_pnl: string; expectancy: string | null; win_rate: string | null; profit_factor: string | null; max_drawdown: string; longest_losing_streak: number; trade_count: number }
 export interface ResearchSignal { id: string; instrument_id: string; strategy_version_id: string; decision_time: string; direction: string; quality: string; provider: string; demo: boolean; partition_id: string; partition_sha256: string; input_sha256: string; label: string }
-export interface ResearchReport { id: string; kind: 'BACKTEST' | 'WALK_FORWARD'; fingerprint: string; input_fingerprint: string; instrument_id: string; provider: string; demo: boolean; timeframe: string; strategy_id: string; strategy_version: string; metrics: ResearchMetrics; warnings: string[]; created_at: string; label: string; fold_count?: number; train_size?: number; test_size?: number }
+export interface ResearchReport { id: string; kind: 'BACKTEST' | 'WALK_FORWARD'; fingerprint: string; input_fingerprint: string; instrument_id: string; provider: string; demo: boolean; timeframe: string; strategy_id: string; strategy_version: string; strategy_version_id?: string; project_id?: string; config_snapshot?: Record<string, unknown>; config_sha256?: string; reproducibility_status?: 'VERIFIED' | 'LEGACY_UNVERIFIED'; metrics: ResearchMetrics; warnings: string[]; created_at: string; label: string; fold_count?: number; train_size?: number; test_size?: number }
 export interface ResearchReportDetail extends ResearchReport { simulation_config: Record<string, unknown>; strategy_config: Record<string, unknown>; sources: unknown[]; trade_summary?: unknown[]; event_summary?: unknown[]; folds?: unknown[] }
 export interface ResearchEvaluation { id: string; decision_time: string | null; instrument_id: string; direction: string; quality: string; reasons: string[]; provider: string; demo: boolean; partition_sha256: string; strategy_id: string; label: string }
 export interface ScoreComponent { performance: number; risk: number; data_quality: number; structure_alignment: number }
@@ -120,6 +120,7 @@ export const paper = {
     if (blocked !== undefined) params.set('blocked', String(blocked));
     return api<PaperPagination<PaperRiskEvent>>(`/paper/risk-events?${params}`);
   },
+  resetAccount: (accountId?: string) => api<PaperAccountSummary>(accountId ? `/paper/accounts/${accountId}/reset` : '/paper/accounts/reset', { method: 'POST' }),
 };
 
 export const market = { coverage: (offset = 0, filters: CoverageFilters = {}) => {

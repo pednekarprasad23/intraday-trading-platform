@@ -21,16 +21,22 @@ router = APIRouter(prefix="/api/v1/research", dependencies=[Depends(require_user
 
 
 def _report(db, row):
+    reproducibility_status = "VERIFIED" if (row.strategy_version_id and row.config_sha256) else "LEGACY_UNVERIFIED"
     item = dict(
         id=row.id,
         fingerprint=row.fingerprint,
         input_fingerprint=row.input_fingerprint,
         provider=row.provider,
-        demo=db.get(Instrument, row.instrument_id).is_demo,
+        demo=db.get(Instrument, row.instrument_id).is_demo if db.get(Instrument, row.instrument_id) else False,
         instrument_id=row.instrument_id,
         timeframe=row.timeframe,
         strategy_id=row.strategy_id,
         strategy_version=row.strategy_version,
+        strategy_version_id=row.strategy_version_id,
+        project_id=row.project_id,
+        config_snapshot=row.config_snapshot,
+        config_sha256=row.config_sha256,
+        reproducibility_status=reproducibility_status,
         metrics=row.metrics,
         warnings=row.warnings,
         created_at=row.created_at,
