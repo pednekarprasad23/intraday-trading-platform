@@ -24,8 +24,10 @@ test.describe('Positions & Reconciliation V2.4', () => {
     await reconcileNav.click();
     await expect(page.locator('h2', { hasText: 'Reconciliation Console' })).toBeVisible();
 
-    await expect(page.locator('text=EXACT')).toBeVisible();
-    await expect(page.locator('text=STRONG')).toBeVisible();
-    await expect(page.locator('text=AMBIGUOUS')).toBeVisible();
+    const legend = page.locator('text=Legend:');
+    await expect(legend).toBeVisible();
+    await expect(page.locator('text=EXACT').first()).toBeVisible();
+    await expect(page.locator('text=STRONG').first()).toBeVisible();
+    await expect(page.locator('text=AMBIGUOUS').first()).toBeVisible();
   });
 });
