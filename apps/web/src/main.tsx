@@ -14,6 +14,8 @@ import { StatusBadge } from './StatusBadge';
 import { DashboardView } from './DashboardView';
 import { OrdersView } from './OrdersView';
 import { SignalsView } from './SignalsView';
+import { PositionsView } from './PositionsView';
+import { ReconciliationView } from './ReconciliationView';
 
 type View = 'dashboard' | 'research' | 'market' | 'instruments' | 'system' | 'paper' | 'historical' | 'orders' | 'positions' | 'risk' | 'reconcile' | 'signals';
 
@@ -235,35 +237,28 @@ export function App() {
             {view === 'dashboard' && <DashboardView onNavigate={setView} />}
             {view === 'orders' && <OrdersView />}
             {view === 'signals' && <SignalsView />}
+            {view === 'positions' && <PositionsView />}
             {view === 'research' && <ResearchView />}
-            {(view === 'market' || view === 'positions' || view === 'risk') && (
+            {view === 'market' && (
               <>
                 <div className="notice-inline">
                   Connector data can be absent or stale. Quotes and terminal snapshots are not execution instructions.
                 </div>
-                {view === 'positions' || view === 'risk' ? (
-                  <PaperTradingView />
-                ) : (
-                  <><CoverageView /><Mt5View /><AngelOneView /></>
-                )}
+                <CoverageView /><Mt5View /><AngelOneView />
+              </>
+            )}
+            {view === 'risk' && (
+              <>
+                <div className="notice-inline">
+                  Connector data can be absent or stale. Quotes and terminal snapshots are not execution instructions.
+                </div>
+                <PaperTradingView />
               </>
             )}
             {view === 'historical' && <HistoricalView />}
             {view === 'instruments' && <InstrumentsView />}
             {view === 'paper' && <PaperTradingView />}
-            {view === 'reconcile' && (
-              <section className="workspace-panel">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">RECONCILIATION CONSOLE</p>
-                    <h2>Signal-to-Fill Audit</h2>
-                  </div>
-                </div>
-                <p className="notice-inline">
-                  The Reconciliation Console is scheduled for implementation in <strong>Phase V2.4</strong>. It will provide end-to-end matching of strategy signals, simulated orders, broker fills, and realized P&L with discrepancy detection.
-                </p>
-              </section>
-            )}
+            {view === 'reconcile' && <ReconciliationView />}
             {view === 'system' && (
               <section id="status" className="workspace-panel">
                 <div className="section-heading">

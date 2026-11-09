@@ -422,6 +422,45 @@ def list_positions(
     return items
 
 
+@router.get("/positions/{position_id}/fills")
+def list_position_fills(
+    position_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """List fills that contribute to a paper position via instrument/account matching.
+
+    Correlation classification: STRONG (instrument + account + time window).
+    No durable foreign key links PaperPosition to PaperFill directly.
+    """
+    position = db.get(PaperPosition, position_id)
+    if position is None:
+        raise HTTPException(404, f"Position {position_id} not found")
+
+    fills = db.scalars(
+        select(PaperFill)
+        .join(PaperOrder, PaperFill.order_id == PaperOrder.id)
+        .where(PaperOrder.instrument_id == position.instrument_id)
+        .where(PaperOrder.account_id == position.account_id)
+        .order_by(PaperFill.filled_at)
+    ).all()
+
+    return [serialize_fill(f) for f in fills]
+
+
+@router.get("/orders/{order_id}/fills")
+def list_order_fills(
+    order_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """List fills for a specific order. Correlation: EXACT (PaperFill.order_id FK)."""
+    order = db.get(PaperOrder, order_id)
+    if order is None:
+        raise HTTPException(404, f"Order {order_id} not found")
+
+    fills = [serialize_fill(f) for f in order.fills]
+    return fills
+
+
 # ============================================================================
 # Kill Switch Endpoints
 # ============================================================================
