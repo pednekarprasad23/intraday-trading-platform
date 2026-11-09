@@ -1,4 +1,4 @@
-"""Project control-plane database models."""
+"""Project control-plane database models (V2.6 Phase 3)."""
 
 from datetime import datetime, timezone
 from enum import Enum
@@ -35,6 +35,15 @@ class ExecutionMode(str, Enum):
     LIVE_DISABLED = "LIVE_DISABLED"
 
 
+class RunStatus(str, Enum):
+    QUEUED = "QUEUED"
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -50,6 +59,13 @@ class Project(Base):
     )
     config: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     config_version: Mapped[int] = mapped_column(default=1, nullable=False)
+
+    # V2.6 Phase 3 Runtime Tracking Fields
+    runtime_status: Mapped[str] = mapped_column(String(50), default="STOPPED", nullable=False)
+    runtime_instance_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
@@ -59,6 +75,9 @@ class Project(Base):
 
     strategies: Mapped[list["ProjectStrategyAssignment"]] = relationship(
         "ProjectStrategyAssignment", back_populates="project", cascade="all, delete-orphan"
+    )
+    runs: Mapped[list["ProjectRun"]] = relationship(
+        "ProjectRun", back_populates="project", cascade="all, delete-orphan"
     )
 
 
@@ -80,3 +99,34 @@ class ProjectStrategyAssignment(Base):
     )
 
     project: Mapped[Project] = relationship("Project", back_populates="strategies")
+
+
+class ProjectRun(Base):
+    __tablename__ = "project_runs"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    strategy_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("strategy_versions.id"), nullable=False
+    )
+    status: Mapped[RunStatus] = mapped_column(
+        SQLEnum(RunStatus), default=RunStatus.QUEUED, nullable=False
+    )
+    parameters_snapshot: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    parameters_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    requested_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    runtime_instance_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_summary: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    project: Mapped[Project] = relationship("Project", back_populates="runs")
