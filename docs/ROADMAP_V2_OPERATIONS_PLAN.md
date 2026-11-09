@@ -65,17 +65,14 @@ Based on actual repository code analysis across `apps/api/app/`, `apps/web/src/`
 
 ## 3. Core V2 vs Optional Future Enhancements
 
-### Core V2 Scope (Trading Operations & Control)
-1. **Command Dashboard:** Global status bar, aggregated operational KPIs, active project cards, and unified activity stream.
-2. **Project / Strategy Operations:** Project management cards exposing runtime states, broker mappings, signal states, positions, and P&L (demonstrated on *Daily XAU*, *XAUUSD Pullback*, *NIFTY F&O*).
-3. **Execution State & Lifecycle:** Explicit tracking of `SIGNAL RECEIVED → ROUTED → BROKER TRANSMITTED → ACCEPTED/DENIED → FILLED → POSITION OPEN → EXIT → CLOSED`.
-4. **First-Class Operational Views:** Dedicated, filterable screens for **Orders**, **Positions**, and **Trades/Fills**.
-5. **Reconciliation Console:** End-to-end operational matching of signals, simulated broker orders, fills, and realized P&L with discrepancy detection.
-6. **Broker & Risk Controls:** Explicit `PAPER` / `PAUSED` / `BROKER READ-ONLY` toggles (`PAUSED` blocks new order entries while keeping signal intake and position monitoring active), persistent Kill Switch management, max daily loss limits, and exposure gauges.
-7. **System Health & Audit Telemetry:** Integration of `/monitoring/health`, `/monitoring/metrics`, backup status, and `AuditLog` / `PaperRiskEvent` streams.
-8. **Modern, Polished UI (via 21st.dev):** High-clarity dashboard layout, stat cards, clear P&L indicators, accessible status badges, and deliberate interaction dialogs.
+### Core V2 Scope (Market Discovery + Analysis Foundation)
+1. **Market Discovery Pipeline:** V2.9A-V2.9E complete — foundation, provider-neutral option chain, scanner, analysis engine contract
+2. **Analysis Engine Framework:** V2.9E — abstract contract, context/result types, registry; zero execution coupling
+3. **Opportunity Engine + Scoring/Ranking:** V2.9G (future) — combine independent engine results, deterministic ranking, explainability
+4. **Historical Replay + Missed Opportunity Analysis:** V2.10 (future) — replay normalized observations, candidates, engine results; answer "what did TradeCartel know"
+5. **Opportunity Portal:** V2.11 (future) — operator-facing portal for ranked opportunities, explainable scores, historical analysis
 
-### Optional Future Backlog (Demoted from Core V2)
+### Optional Future Backlog (Demoted from Core V2+)
 * Multi-asset Options Surface / 3D Volatility Smile fitting.
 * Exotic Greeks calculation engine (Vanna, Charm).
 * Barone-Adesi-Whaley American options pricing.
@@ -84,8 +81,60 @@ Based on actual repository code analysis across `apps/api/app/`, `apps/web/src/`
 * Historical macro stress-testing matrices (COVID 2020, 2008 Crash).
 * Institutional order-book liquidity matching and square-root market impact models.
 * Massive 10,000-row virtualized data grids.
-* WebSocket/SSE push infrastructure (retained as future enhancement; periodic polling fulfills all V2 requirements).
 * Live automated broker order execution (requires formal regulatory compliance, live capital authorization, and exchange certifications).
+* V2.10 historical replay infrastructure.
+* V2.11 Opportunity Portal UI.
+
+---
+
+## 4. Information Architecture
+
+The V2 workspace navigation now includes market discovery and analysis:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ TOPBAR: Brand │ Status Pill │ Market/Session │ Mode: PAPER SIMULATION │ Kill Switch │
+├───────────────┬────────────────────────────────────────────────────────────────────────┤
+│ SIDEBAR       │ MAIN CONTENT AREA                                                      │
+│               │                                                                        │
+│ MARKET DISCOVERY   │ 1. MARKET DISCOVERY      (V2.9A-E pipelines; scanner; candidates) │
+│ • Discovery      │ 2. ANALYSIS              (V2.9E contract; independent engines)          │
+│   Pipeline       │ 3. CANDIDATES            (MarketCandidate; persists in DB)            │
+│ • Scanner        │ 4. ANALYSIS CONTEXT      (AnalysisContext piped from candidates)        │
+│ • Candidates     │ 5. ANALYSIS ENGINES      (independent engines → AnalysisResult)           │
+│                │ 6. ANALYSIS RESULTS      (qualifying means engine's criteria only)          │
+│                │ 7. OPPORTUNITY ENGINE    (V2.9G; combine + rank; NOT YET)                │
+│                │ 8. HISTORICAL REPLAY     (V2.10; replay candidates+engine results)          │
+│                │ 9. OPPORTUNITY PORTAL    (V2.11; operator-facing; NOT YET)                │
+│                │ 10. RESEARCH & DATA      (Historical candlesticks, backtests, rankings)      │
+│                │ 11. SYSTEM HEALTH        (Service health, dependencies, audit logs)          │
+│                │                                                                        │
+│ FOUNDATION       │                                                                        │
+│                │                                                                        │
+└───────────────┴────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 17. Final Phase Order
+
+```
+V2.1 → V2.2 → V2.3 → V2.4 → V2.5 → V2.6 → V2.7 → V2.8 → V2.9A → V2.9B → V2.9C → V2.9D → V2.9E → V2.9F → V2.9G → V2.10 → V2.11
+```
+
+---
+
+## 18. V2.9A-E COMPLETION STATUS
+
+- **V2.9A: Universal Market Discovery Foundation** — COMPLETE / FROZEN
+- **V2.9B: Provider-Neutral Option Chain Foundation** — COMPLETE / FROZEN
+- **V2.9C: Scanner Interface + MarketCandidate** — COMPLETE / FROZEN
+- **V2.9D: First NIFTY Options Discovery Scanner** — COMPLETE / FROZEN
+- **V2.9E: Analysis Engine Interface/Foundation** — COMPLETE / FROZEN
+- **V2.9F: Initial Real Analysis Engines** — CURRENT (authorized only on explicit prompt)
+- **V2.9G: Opportunity Engine + Scoring/Ranking** — FUTURE
+- **V2.10: Historical Replay + Missed Opportunity Analysis** — FUTURE
+- **V2.11: Opportunity Portal** — FUTURE
 
 ---
 

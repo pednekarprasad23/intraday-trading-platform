@@ -110,8 +110,7 @@ class AnalysisEngine(ABC):
 
 
 # Registry of named engines for discovery/bootstrap purposes.
-# Populated by V2.9F / application bootstrap; remains empty until engines
-# are registered.
+# Populated by V2.9F engine registration; engines self-register at import.
 ANALYSIS_ENGINES: dict[str, type[AnalysisEngine]] = {}
 
 #: Required engine configuration keys (populated by bootstrap, read-only for engines).
