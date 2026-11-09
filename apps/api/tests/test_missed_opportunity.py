@@ -57,15 +57,25 @@ def test_missed_opportunity_does_not_flag_low_score():
 
 
 def test_missed_opportunity_uses_missing_engines_reason():
-    """When missing data causes a miss reason to include engine list."""
+    """Under ISSUE-1: missing engine data no longer generates a miss reason
+    solely from T0 score. Without an OutcomeEvaluation indexed for the candidate,
+    the record is classified as insufficient_future_data.
+
+    The analyzer now requires BOTH T0 intelligence AND Objective Future Outcome
+    linkage — not just T0 score + non-selection.
+    """
+    # Under ISSUE-1: no OutcomeEvaluation indexed for candidate -> insufficient_future_data
+    # The old "missing engines" miss reason is replaced by lineage-aware outcome checks.
     missing = ["liquidity-quality", "greeks-snapshot"]
     opp = _make_opp(score=Decimal("70"), missing=missing)
-    # opp was not selected but has lower completeness due to missing engines
     analyzer = MissedOpportunityAnalyzer(score_threshold=Decimal("60.0"))
+    # No outcome evaluations provided -> insufficient_future_data classification
     misses = analyzer.analyze_misses([opp], [])
     assert len(misses) == 1
     record = misses[0]
-    assert "liquidity-quality" in record.miss_reason
+    # Under ISSUE-1: classification should be insufficient_future_data,
+    # not a missing-engines reason
+    assert record.classification == "insufficient_future_data"
 
 
 def test_missed_opportunity_records_correct_fields():
